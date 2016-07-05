@@ -5,10 +5,9 @@ library(strataG)
 library(splitstackshape)
 
 
-run_sim <- function(niter, model = c("bottleneck", "neutral", "exp_decline")) {
   
   ## diploid pop size
-  N0 <- round(runif(1, min = 1, max = 1000000), 0)
+  N0 <- round(runif(1, min = 1000, max = 300000), 0)
   # N0 <- 100000
   
   ## mutation rate
@@ -17,7 +16,7 @@ run_sim <- function(niter, model = c("bottleneck", "neutral", "exp_decline")) {
   
   ## theta
   theta <- 4 * N0 * mu
-
+  
   # the 'start' here is actually the temporal end of the bottleneck. I´m just 
   # thinking backwards in time here.
   
@@ -36,13 +35,12 @@ run_sim <- function(niter, model = c("bottleneck", "neutral", "exp_decline")) {
   # see ms manual. time is expressed in units of 4*N0
   start_bot <- runif(1, min = latest_start / (4*N0), max = earliest_start / (4*N0))
   
-  ## bottleneck population size 1 - 1000, expressed relative to N0
-  N_bot <- round(runif(1, min = 1 / N0, max = 1000 / N0), 4)
-  
-  ## historical populaiton size 1 - 100 times as big as current
-  N_hist <- round(runif(1, min = 1 , max = 100 ), 0)
+  ## bottleneck population size 1 - 10000
+  N_bot <- round(runif(1, min = 0.00001, max = 0.001), 4)
+  N_hist <- round(runif(1, min = 1, max = 100), 0)
   
   # exponential population decline
+  
   alpha = -(1/ end_bot) * log(N0/N_hist)
   
   if (model == "bottleneck") {
@@ -99,43 +97,5 @@ run_sim <- function(niter, model = c("bottleneck", "neutral", "exp_decline")) {
                     obs_het_mean = obs_het_mean,  obs_het_sd =  obs_het_sd)
   
   out 
-}
-
-library(parallel)
-library(data.table)
-# number of simulations
-num_sim <- 100000
-
-# run on cluster
-cl <- makeCluster(getOption("cl.cores", 35))
-clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-#sims_bot <- do.call(rbind, parLapply(cl, 1:num_sim, run_sim, "bottleneck"))
-# sims_bot <- do.call(rbind, parLapply(cl, 1:num_sim, run_sim, "bottleneck"))
-sims <- parLapply(cl, 1:num_sim, run_sim, "bottleneck")
-# system.time(sims_bot <- dplyr::rbind_all(sims))
-sims_bot <- as.data.frame(data.table::rbindlist(sims))
-stopCluster(cl)
-
-cl <- makeCluster(getOption("cl.cores", 35))
-clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-sims <- parLapply(cl, 1:num_sim, run_sim, "neutral")
-sims_neut <- as.data.frame(data.table::rbindlist(sims))
-# sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-stopCluster(cl)
-# boxplot(sims$exp_het)
-
-cl <- makeCluster(getOption("cl.cores", 35))
-clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-sims <- parLapply(cl, 1:num_sim, run_sim, "exp_decline")
-sims_decl <- as.data.frame(data.table::rbindlist(sims))
-# sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-stopCluster(cl)
-# boxplot(sims$exp_het)
-
-# sims_bot vs. sims_neut
-sims <- rbind(sims_bot, sims_neut, sims_decl)
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
-
-write.table(sims, file = "sims_3mod.txt", row.names = FALSE)
 
 
