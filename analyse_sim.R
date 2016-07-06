@@ -1,3 +1,6 @@
+# analyse simulated microsatellites under three different models000
+
+
 sims <- read.table("sims_3mod.txt", stringsAsFactors = FALSE)
 names(sims) <- unlist(sims[1, ])
 sims <- sims[-1, ]
@@ -5,11 +8,12 @@ sims <- sims[-1, ]
 sims <- cbind(do.call(cbind, lapply(sims[-ncol(sims)], as.numeric)), sims[ncol(sims)])
 
 #
-par(mfcol = c(2,2))
+par(mfcol = c(2,3))
 boxplot(sims$num_alleles_mean ~ sims$model)
 boxplot(sims$mean_allele_size_sd ~ sims$model)
 boxplot(sims$exp_het_mean ~ sims$model)
 boxplot(sims$obs_het_mean ~ sims$model)
+boxplot(sims$het_ratio ~ sims$model)
 
 par(mfcol = c(2,2))
 boxplot(sims$num_alleles_sd ~ sims$model)
@@ -30,7 +34,7 @@ load_dataset <- function(dataset_names) {
 seal_data <- lapply(dataset_names, load_dataset)
 names(seal_data) <- dataset_names
 # hawaiian monk seal
-genotypes <- seal_data[[1]]
+genotypes <- seal_data[[9]]
 genotypes <- genotypes[4:ncol(genotypes)]
 
 
@@ -62,8 +66,12 @@ obs_het <- obsvdHet(g_types_geno)
 obs_het_mean <- mean(obs_het, na.rm = TRUE)
 obs_het_sd <- sd(obs_het, na.rm = TRUE)
 
+# excess
+het_ratio <- mean(obs_het / exp_het, na.rm = TRUE)
+
+
 obs_stats <- data.frame(num_alleles_mean, num_alleles_sd, mean_allele_size_sd, sd_allele_size_sd,
-                        exp_het_mean, exp_het_sd, obs_het_mean, obs_het_sd)
+                        exp_het_mean, exp_het_sd, obs_het_mean, obs_het_sd, het_ratio)
 
 # divide stats and parameters
 sims_stats <- sims[6:(ncol(sims)-1)] # last column is model factor
@@ -73,11 +81,13 @@ models <- sims[["model"]]
 library(abc)
 
 # abc
-cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.25, method="rejection")
+cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.01, method="mnlogistic")
 s <- summary(cv.modsel)
 plot(cv.modsel, names.arg=c("bot", "neut", "decl"))
 
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.1, method = "mnlogistic")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.05, method = "mnlogistic")
+summary(mod_prob)
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.05, method = "rejection")
 summary(mod_prob)
 
 
@@ -91,3 +101,10 @@ summary(res.gfit.bott)
 gfitpca(target=obs_stats, sumstat=sims_stats, index=models, cprob=.1)
 
 ## 
+
+mylabels <- c("num_alleles_mean","mean_allele_size_sd", "exp_het_mean", "obs_het_mean", "het_ratio")
+par(mfrow = c(1,5), mar=c(5,2,4,0))
+for (i in mylabels){
+  hist(sims_stats[,i],breaks=40, xlab=i, main="")
+  abline(v = obs_stats[i], col = 2)
+}
