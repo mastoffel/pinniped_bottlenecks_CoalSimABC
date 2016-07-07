@@ -33,8 +33,6 @@ names(seals) <- str_replace(names(seals), "_cl_2", "")
 abundances <- read_excel("../data/abundances.xlsx", sheet = 1)
 
 
-
-
 # which species?
 
 i <- 1
@@ -46,9 +44,16 @@ N_loc <- (ncol(seals[[i]]) - 3) / 2
 ##
 
 library(data.table)
-sims <- lapply(c(1:N_sim), create_tbs_file, N_pop, N_samp, N_loc, model = "bottleneck")
+# create tbs file
+N_sim <- 10
+sims_bot <- lapply(c(1:N_sim), create_tbs_file, N_pop, N_samp, N_loc, model = "bottleneck")
+sims_bot_df <- data.table::rbindlist(sims_bot)
+write.table(sims_bot_df, file = "bot_tbs", row.names = FALSE, col.names = FALSE)
 
-sims_df <- data.table::rbindlist(sims)
+
+
+sys_com <- paste("/home/martin/bin/ms", N_samp, N_loc, "-t", theta, "-eN", end_bot, N_bot, "-eN", start_bot, N_hist, "| /home/martin/bin/microsat > msat", sep = " ")
+system(sys_com)
 
 
 run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "decline")) {
