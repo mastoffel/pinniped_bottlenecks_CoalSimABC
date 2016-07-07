@@ -1,7 +1,7 @@
 # analyse simulated microsatellites under three different models000
 
 
-sims <- read.table("sims_3mod.txt", stringsAsFactors = FALSE)
+sims <- read.table("sims_3modhms.txt", stringsAsFactors = FALSE)
 names(sims) <- unlist(sims[1, ])
 sims <- sims[-1, ]
 # transform everything to numeric
@@ -23,18 +23,11 @@ boxplot(sims$obs_het_sd ~ sims$model)
 
 
 
-library(readxl)
-# sheet numbers to load
-dataset_names <- excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
+# load all seal data
+all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
 
-load_dataset <- function(dataset_names) {
-  read_excel("../data/seal_data_largest_clust_and_pop.xlsx", sheet = dataset_names)
-}
-# load all datasets
-seal_data <- lapply(dataset_names, load_dataset)
-names(seal_data) <- dataset_names
 # hawaiian monk seal
-genotypes <- seal_data[[9]]
+genotypes <- all_seals[[1]]
 genotypes <- genotypes[4:ncol(genotypes)]
 
 
@@ -81,17 +74,17 @@ models <- sims[["model"]]
 library(abc)
 
 # abc
-cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.01, method="mnlogistic")
+cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.5, method="mnlogistic")
 s <- summary(cv.modsel)
 plot(cv.modsel, names.arg=c("bot", "neut", "decl"))
 
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.05, method = "mnlogistic")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.1, method = "mnlogistic")
 summary(mod_prob)
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.05, method = "rejection")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.1, method = "rejection")
 summary(mod_prob)
 
 
-res.gfit.bott <- gfit(target=obs_stats, sumstat= sims_stats[models == "bot",], statistic=mean, nb.replicate=100)
+res.gfit.bott <- gfit(target=obs_stats, sumstat= sims_stats[models == "neut",], statistic=mean, nb.replicate=100)
 plot(res.gfit.bott, main="Histogram under H0")
 
 summary(res.gfit.bott)
@@ -105,6 +98,33 @@ gfitpca(target=obs_stats, sumstat=sims_stats, index=models, cprob=.1)
 mylabels <- c("num_alleles_mean","mean_allele_size_sd", "exp_het_mean", "obs_het_mean", "het_ratio")
 par(mfrow = c(1,5), mar=c(5,2,4,0))
 for (i in mylabels){
-  hist(sims_stats[,i],breaks=40, xlab=i, main="")
+  hist(sims_stats[models == "decl",i],breaks=40, xlab=i, main="")
   abline(v = obs_stats[i], col = 2)
 }
+
+
+
+# posterior predictive checks
+
+stat_bot <- subset(sims_stats, subset=models=="bot")
+par_bot <- subset(sims_param, subset=models=="bot")
+
+cv.res.rej <- cv4abc(data.frame(Na=par_bot[,"N0"]), stat_bot, nval=10,
+              tols=c(.1,.2, .3), method="rejection")
+
+summary(cv.res.rej)
+
+
+# parameter inference
+
+res <- abc(target = unlist(obs_stats), param = par_bot, sumstat = stat_bot, tol = 0.1, 
+           transf=c("log"), method="loclinear")
+summary(res)
+hist(res)
+
+
+par(cex=.8)
+plot(res, param=par_bot)
+
+
+

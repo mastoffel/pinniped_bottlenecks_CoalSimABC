@@ -1,16 +1,19 @@
 # simulating microsatellite data and calculating summary statistics
+
+library(devtools)
+# install_github("mastoffel/sealABC")
+library(sealABC)
 library(microsimr)
 library(strataG)
 library(splitstackshape)
 library(stringr)
 library(parallel)
 library(data.table)
+library(readxl)
 
 
-
-source("abc_tools.R")
 # load all seal data
-all_seals <- load_seal_data("../data/seal_data_largest_clust_and_pop.xlsx")
+all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
 
 
 ### select 28 datasets //
@@ -32,14 +35,13 @@ names(seals) <- str_replace(names(seals), "_cl_2", "")
 abundances <- read_excel("../data/abundances.xlsx", sheet = 1)
 
 
-
-
 # which species?
 
-i <- 9
+i <- 1
 
 # parameters for species
-N_pop <- as.numeric(unlist(abundances[which(str_detect(abundances$species[i], names(seals))), "Abundance"]))
+# N_pop <- as.numeric(unlist(abundances[which(str_detect(abundances$species[i], names(seals))), "Abundance"]))
+N_pop <- 1000
 N_samp <- nrow(seals[[i]])
 N_loc <- (ncol(seals[[i]]) - 3) / 2
 ##
@@ -72,19 +74,19 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   
   
   #### bottleneck start ####
-  latest_start <- 15 # generations ago
+  latest_start <- earliest_end + 1 # generations ago / ensure that start is before end
   earliest_start <- 50 # generations ago
   # see ms manual. time is expressed in units of 4*N0
   start_bot <- runif(1, min = latest_start / (4*N0), max = earliest_start / (4*N0))
   
   ## bottleneck population size 1 - 1000, expressed relative to N0
-  N_bot <- round(runif(1, min = 0.00001 * N0, max = 0.001 * N0), 4)
+  N_bot <- round(runif(1, min = 0.000001, max = 0.0001), 4)
   
   ## historical populaiton size 1 - 100 times as big as current
-  N_hist <- round(runif(1, min = N_pop / 10 , max = N_pop), 0)
+  N_hist <- round(runif(1, min = N_pop / 10, max = N_pop), 0)
   
   #
-  N_hist_decl <- round(runif(1, min = N0 * 10 , max = N0 * 1000), 0)
+  N_hist_decl <- round(runif(1, min = N0, max = N0 * 1000), 0)
   
   # exponential population decline
   # alpha = -(1/ end_bot) * log(N0/N_hist)
@@ -94,11 +96,11 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   }
   
   if (model == "neutral") {
-    ms_options <- NULL
+    ms_options <- paste("-eN", start_bot, N_hist, sep = " ")
   }
   
   if (model == "decline") {
-    ms_options <- paste("-eN", start_bot, N_hist, sep = " ")
+    ms_options <- paste("-eN", start_bot, N_hist_decl, sep = " ")
   }
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
@@ -152,7 +154,7 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
 
 
 # number of simulations
-num_sim <- 20000
+num_sim <- 10000
 
 # for (model in c("bottleneck", "neutral", "decline")) {
 #   
@@ -197,6 +199,6 @@ stopCluster(cl)
 sims <- rbind(sims_bot, sims_neut, sims_decl)
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
 #
-write.table(sims, file = "sims_3modhms.txt", row.names = FALSE)
+write.table(sims, file = "sims_3modafs.txt", row.names = FALSE)
 
 

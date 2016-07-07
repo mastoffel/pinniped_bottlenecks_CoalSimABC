@@ -8,15 +8,15 @@ library(data.table)
 
 
 
-run_sim <- function(N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "decline")) {
+run_sim <- function( N_pop, N_samp,  N_loc, model = c("bottleneck", "neutral", "decline")) {
   
   ## diploid pop size
-  # N0 <- round(runif(1, min = N_pop / 10, max = N_pop * 2), 0)
-  N0 <- N_pop
-  
+  N0 <- round(runif(1, min = N_pop / 10, max = N_pop), 0)
+  #  N0 <- N_pop
+  # N0 <- 10000
   ## mutation rate
-  mu <- runif(1, min = 0.0005, max = 0.005)
-  # mu <- 0.0005
+  # mu <- runif(1, min = 0.0005, max = 0.005)
+  mu <- 0.0005
   
   ## theta
   theta <- 4 * N0 * mu
@@ -26,23 +26,26 @@ run_sim <- function(N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "de
   
   #### bottleneck end ####
   # time is always thought in GENERATIONS
-  latest_end <- 1 # generations ago
-  earliest_end <- 30 # generations ago
+  latest_end <- 5 # generations ago
+  earliest_end <- 15 # generations ago
   # see ms manual. time is expressed in units of 4*N0
   end_bot <- runif(1, min = latest_end / (4*N0), max = earliest_end / (4*N0))
   
   
   #### bottleneck start ####
-  latest_start <- 15 # generations ago
-  earliest_start <- 100 # generations ago
+  latest_start <- earliest_end + 1 # generations ago / ensure that start is before end
+  earliest_start <- 50 # generations ago
   # see ms manual. time is expressed in units of 4*N0
   start_bot <- runif(1, min = latest_start / (4*N0), max = earliest_start / (4*N0))
   
   ## bottleneck population size 1 - 1000, expressed relative to N0
-  N_bot <- round(runif(1, min = 1 / N0, max = 1000 / N0), 4)
+  N_bot <- round(runif(1, min = 0.000001, max = 0.0001), 4)
   
   ## historical populaiton size 1 - 100 times as big as current
-  N_hist <- round(runif(1, min = 1 , max = 100 ), 0)
+  N_hist <- round(runif(1, min = N_pop / 10, max = N_pop), 0)
+  
+  #
+  N_hist_decl <- round(runif(1, min = N0, max = N0 * 1000), 0)
   
   # exponential population decline
   # alpha = -(1/ end_bot) * log(N0/N_hist)
@@ -52,11 +55,11 @@ run_sim <- function(N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "de
   }
   
   if (model == "neutral") {
-    ms_options <- NULL
+    ms_options <- paste("-eN", start_bot, N_hist, sep = " ")
   }
   
   if (model == "decline") {
-    ms_options <- paste("-eN", start_bot, N_hist * 10, sep = " ")
+    ms_options <- paste("-eN", start_bot, N_hist_decl, sep = " ")
   }
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
@@ -94,14 +97,19 @@ run_sim <- function(N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "de
   obs_het_mean <- mean(obs_het, na.rm = TRUE)
   obs_het_sd <- sd(obs_het, na.rm = TRUE)
   
+  # excess
+  het_ratio <- mean(obs_het / exp_het, na.rm = TRUE)
+  
   out <- data.frame(N0 = N0, t_bot = end_bot, t_hist = start_bot, n_bot = N_bot, n_hist = N_hist,
                     num_alleles_mean = num_alleles_mean, num_alleles_sd = num_alleles_sd,
                     mean_allele_size_sd = mean_allele_size_sd, sd_allele_size_sd = sd_allele_size_sd,
                     exp_het_mean = exp_het_mean,  exp_het_sd =  exp_het_sd,
-                    obs_het_mean = obs_het_mean,  obs_het_sd =  obs_het_sd)
+                    obs_het_mean = obs_het_mean,  obs_het_sd =  obs_het_sd,
+                    het_ratio = het_ratio)
   
   out
 }
+
 
 
 
@@ -113,11 +121,15 @@ N_loc <- 15
 
 
 measure_time <- function(N_pop) {
-  out <- system.time(run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck"))
-  out[3]
+  
+  out1 <- system.time(run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck"))
+  out2 <- system.time(run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "neutral"))
+  out3 <- system.time(run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "decline"))
+   
+  out <- out1[3] + out2[3] + out3[3]
 }
 ## more than 100 000 gets unrealistic
-out <- lapply(seq(from = 100, to = 2000000, by = 50000), measure_time)
+out <- lapply(seq(from = 10, to = 10000, by = 1000), measure_time)
 plot(unlist(out))
 
 
