@@ -59,4 +59,15 @@ out <- data.frame(apply(out, 2, function(x) {
 }), stringsAsFactors = FALSE)
 out[1,1] <- "BLANK"
 out$V1 <- as.factor(out$V1)
-basicStats(out, rarefaction = FALSE)
+basicStats(out)
+
+
+# test
+
+new_out <- rbind(out, out[23:30, ])
+stats <- basicStats(new_out)
+str(stats)
+
+mean(stats$exp_het[[2]], na.rm = TRUE)
+obs_het_mean
+exp_het_mean

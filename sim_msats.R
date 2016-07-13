@@ -3,6 +3,7 @@
 library(devtools)
 # install_github("mastoffel/sealABC")
 library(sealABC)
+# devtools::install_github("andersgs/microsimr")
 library(microsimr)
 library(strataG)
 library(splitstackshape)
@@ -10,9 +11,11 @@ library(stringr)
 library(parallel)
 library(data.table)
 library(readxl)
+library(dplyr)
 
+# devtools::install_github('ericarcher/strataG', build_vignettes = TRUE)
 
-# load all seal data
+# load all seal data ------------------------------
 all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
 
 
@@ -34,59 +37,86 @@ names(seals) <- str_replace(names(seals), "_cl_2", "")
 # load abundances
 abundances <- read_excel("../data/abundances.xlsx", sheet = 1)
 
+# load generation times
+gen_time <- read_excel("../data/seal_data_krueger.xlsx", sheet = 1)[-1]
+names(gen_time) <- str_replace(names(gen_time), " ", "_")
+gen_time <- gen_time %>% 
+  select(dataset_name, Generation_time) %>%
+  filter(!is.na(dataset_name)) %>% 
+  # generation time of arctic ringed seal for other ringed seals
+  mutate(Generation_time = ifelse(is.na(Generation_time), 6804, Generation_time)) %>%
+  mutate(gen_time = Generation_time / 356)
 
-# which species?
 
-i <- 1
+
+
+# which species? -----------------------------------------
+
+species_name <- "antarctic_fur_seal"
 
 # parameters for species
-# N_pop <- as.numeric(unlist(abundances[which(str_detect(abundances$species[i], names(seals))), "Abundance"]))
-N_pop <- 1000
-N_samp <- nrow(seals[[i]])
-N_loc <- (ncol(seals[[i]]) - 3) / 2
+N_pop <- as.numeric(abundances[abundances$species == species_name, "Abundance"])
+N_pop <- N_pop / 100
+
+# generation time in years
+gen_time <- as.numeric(gen_time[gen_time$dataset_name == species_name, "gen_time"])
+
+# sampling 
+N_samp <- 150
+N_loc <- 50
 ##
 
-
-
-
-run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "decline")) {
+run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "decline", "expansion"), gen_time) {
   
-  ## diploid pop size
-  N0 <- round(runif(1, min = N_pop / 10, max = N_pop), 0)
- #  N0 <- N_pop
-  # N0 <- 10000
+  ## diploid effective population size - size 1/10 to 1 of census
+  # minium proportion of effective population size to census:
+  # 1 /
+  prop_prior_N <- 20
+  
+  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
+  # to keep the historical population size in the same prior range as the current population
+  # size, relative to N_pop
+  Ne_prop <-   N_pop / N0
+  
   ## mutation rate
-  # mu <- runif(1, min = 0.0005, max = 0.005)
-  mu <- 0.0005
-  
+  mu <- runif(1, min = 0.00005, max = 0.0005)
+  # mu <- 0.0005
   ## theta
   theta <- 4 * N0 * mu
   
-  # the 'start' here is actually the temporal end of the bottleneck. I´m just
-  # thinking backwards in time here.
-  
+  sequence_correct <- FALSE
   #### bottleneck end ####
-  # time is always thought in GENERATIONS
-  latest_end <- 5 # generations ago
-  earliest_end <- 15 # generations ago
-  # see ms manual. time is expressed in units of 4*N0
-  end_bot <- runif(1, min = latest_end / (4*N0), max = earliest_end / (4*N0))
+  while (sequence_correct == FALSE) {
+    # time is always thought in GENERATIONS
+    latest_end <- (2016 - 2000) / gen_time # generations ago, 2000 as latest end
+    earliest_end <- (2016 - 1800) / gen_time # generations ago, 1800 as earliest end
+    # see ms manual. time is expressed in units of 4*N0
+    end_bot <- runif(1, min = latest_end / (4*N0), max = earliest_end / (4*N0))
+    
+    #### bottleneck start ####
+    latest_start <- (2016 - 1900) / gen_time # generations ago, latest bottleneck start is 1900
+    earliest_start <- (2016 - 1700) / gen_time # generations ago, earliest bottleneck start is 1700
+    # see ms manual. time is expressed in units of 4*N0
+    start_bot <- runif(1, min = latest_start / (4*N0), max = earliest_start / (4*N0))
+    
+    # ensure that the end of the bottleneck is later than the start of the bottleneck
+    if (end_bot < start_bot) sequence_correct <- TRUE
+  }
   
+  ## bottleneck population size reduction from 1/1000 to 1/1000000
+  N_bot <- round(runif(1, min = 0.000001, max = 0.001), 7) 
   
-  #### bottleneck start ####
-  latest_start <- earliest_end + 1 # generations ago / ensure that start is before end
-  earliest_start <- 50 # generations ago
-  # see ms manual. time is expressed in units of 4*N0
-  start_bot <- runif(1, min = latest_start / (4*N0), max = earliest_start / (4*N0))
-  
-  ## bottleneck population size 1 - 1000, expressed relative to N0
-  N_bot <- round(runif(1, min = 0.000001, max = 0.0001), 4)
-  
-  ## historical populaiton size 1 - 100 times as big as current
-  N_hist <- round(runif(1, min = N_pop / 10, max = N_pop), 0)
-  
+  ## historical population size ranges in the same absolute priors as the current population size
+  N_hist <- round(runif(1, min = (1 / prop_prior_N) * Ne_prop, max = Ne_prop), 5)
   #
-  N_hist_decl <- round(runif(1, min = N0, max = N0 * 1000), 0)
+  earliest_start_decl <- 15000/gen_time # Ice age ended roughly 12000 years ago
+  latest_start_decl <- 50/gen_time # latest start of decline roughly 50 years ago
+  start_decl <- runif(1, min =earliest_start_decl  / (4*N0), max = latest_start_decl / (4*N0))
+  start_exp <- start_decl # start of expansion and decline have same broad priors
+  
+  pop_param_decl_exp <- 50 # population was a maximum of 50 times larger or smaller in the past
+  N_hist_decl <- round(runif(1, min = Ne_prop, max = pop_param_decl_exp * Ne_prop), 0)
+  N_hist_exp <- round(runif(1, min = Ne_prop / pop_param_decl_exp, max = Ne_prop), 0)
   
   # exponential population decline
   # alpha = -(1/ end_bot) * log(N0/N_hist)
@@ -100,105 +130,86 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   }
   
   if (model == "decline") {
-    ms_options <- paste("-eN", start_bot, N_hist_decl, sep = " ")
+    ms_options <- paste("-eN", start_decl, N_hist_decl, sep = " ")
   }
+  
+  if (model == "expansion") {
+    ms_options <- paste("-eN", start_exp, N_hist_exp, sep = " ")
+  }
+  
+  
+  p_single = runif(1, min = 0.6, max = 0.95) # probability of multi-step mutation is 0.2
+  sigma2_g = runif(1, min = 5, max = 70) # typical step-size ~7
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
                                                       n_loc = N_loc,
                                                       n_pop = 1,
+                                                      p_single = p_single,
+                                                      sigma2 = sigma2_g,
                                                       ms_options = ms_options), stringsAsFactors = FALSE)
   
-  # reshape a little bit
-  simd_data <- simd_data[-c(1:2)]
-  genotypes <- as.data.frame(splitstackshape::cSplit(simd_data, names(simd_data), "."))
+  sum_stats <- sealABC::mssumstats(simd_data)
   
-  g_types_geno <- new("gtypes", genotypes, ploidy = 2)
-  
-  # summary statistics
-  # according to DIYabc
-  # number of alleles across loci
-  num_alleles <- strataG::numAlleles(g_types_geno)
-  num_alleles_mean <- mean(num_alleles, na.rm = TRUE)
-  num_alleles_sd <- sd(num_alleles, na.rm = TRUE)
-  
-  # allele size variance (actually, sd) across loci
-  allele_size_sd <- unlist(lapply(seq(from = 1, to = ncol(simd_data)-1, by = 2),
-                                  function(x) sd(unlist(simd_data[x:(x+1)]), na.rm = TRUE)))
-  
-  mean_allele_size_sd <- mean(allele_size_sd, na.rm = TRUE)
-  sd_allele_size_sd <- sd(allele_size_sd, na.rm = TRUE)
-  
-  # expected heterozygosity
-  exp_het <- exptdHet(g_types_geno)
-  exp_het_mean <- mean(exp_het, na.rm = TRUE)
-  exp_het_sd<- sd(exp_het, na.rm = TRUE)
-  # observed heterozygosity
-  obs_het <- obsvdHet(g_types_geno)
-  obs_het_mean <- mean(obs_het, na.rm = TRUE)
-  obs_het_sd <- sd(obs_het, na.rm = TRUE)
-  
-  # excess
-  het_ratio <- mean(obs_het / exp_het, na.rm = TRUE)
-  
-  out <- data.frame(N0 = N0, t_bot = end_bot, t_hist = start_bot, n_bot = N_bot, n_hist = N_hist,
-                    num_alleles_mean = num_alleles_mean, num_alleles_sd = num_alleles_sd,
-                    mean_allele_size_sd = mean_allele_size_sd, sd_allele_size_sd = sd_allele_size_sd,
-                    exp_het_mean = exp_het_mean,  exp_het_sd =  exp_het_sd,
-                    obs_het_mean = obs_het_mean,  obs_het_sd =  obs_het_sd,
-                    het_ratio = het_ratio)
+  sim_param <- data.frame(N0, mu, theta,
+                          start_bot, end_bot,
+                          N_bot, N_hist,
+                          start_decl, start_exp,
+                          N_hist_decl, N_hist_exp,
+                          p_single, sigma2_g)
+  out <- cbind(sim_param, sum_stats)
   
   out
 }
 
 
+# lineprof(run_sim( N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck"))
+
+
 
 # number of simulations
-num_sim <- 10000
-
-# for (model in c("bottleneck", "neutral", "decline")) {
-#   
-#   # run on cluster
-#   cl <- makeCluster(getOption("cl.cores", 2))
-#   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-#   #sims_bot <- do.call(rbind, parLapply(cl, 1:num_sim, run_sim, "bottleneck"))
-#   # sims_bot <- do.call(rbind, parLapply(cl, 1:num_sim, run_sim, "bottleneck"))
-#   sims <- parLapply(cl, 1:num_sim, run_sim, N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = model)
-#   # system.time(sims_bot <- dplyr::rbind_all(sims))
-#   sims_model <- as.data.frame(data.table::rbindlist(sims))
-#   stopCluster(cl)
-#   write.table(sims_model, file = paste("sims_", model, ".txt", sep = ""), row.names = FALSE)
-#   
-# }
+num_sim <- 2
 
 
-cl <- makeCluster(getOption("cl.cores", 35))
+cl <- makeCluster(getOption("cl.cores", 25))
 clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck")
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck", gen_time = gen_time)
 sims_bot <- as.data.frame(data.table::rbindlist(sims))
 # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
 stopCluster(cl)
 
-cl <- makeCluster(getOption("cl.cores", 35))
+cl <- makeCluster(getOption("cl.cores", 25))
 clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral")
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral", gen_time = gen_time)
 sims_neut <- as.data.frame(data.table::rbindlist(sims))
 # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
 stopCluster(cl)
 # boxplot(sims$exp_het)
 
-cl <- makeCluster(getOption("cl.cores", 35))
+cl <- makeCluster(getOption("cl.cores", 25))
 clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline")
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline", gen_time = gen_time)
 sims_decl <- as.data.frame(data.table::rbindlist(sims))
 # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
 stopCluster(cl)
-# boxplot(sims$exp_het)
+
+
+cl <- makeCluster(getOption("cl.cores", 25))
+clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="expansion", gen_time = gen_time)
+sims_exp <- as.data.frame(data.table::rbindlist(sims))
+# sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
+stopCluster(cl)
+
+
+
+sims <- rbind(sims_bot, sims_neut, sims_decl, sims_exp) #sims_exp
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl", num_sim), rep("exp", num_sim))
 
 # sims_bot vs. sims_neut
-sims <- rbind(sims_bot, sims_neut, sims_decl)
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
+# sims <- rbind(sims_bot, sims_neut, sims_decl)
+# sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
 #
-write.table(sims, file = "sims_3modafs.txt", row.names = FALSE)
+write.table(sims, file = "sims_full_afs.txt", row.names = FALSE)
 
 

@@ -1,72 +1,46 @@
 # simulating microsatellite data and calculating summary statistics
+
+library(devtools)
+# install_github("mastoffel/sealABC")
+library(sealABC)
 library(microsimr)
 library(strataG)
 library(splitstackshape)
 library(stringr)
 library(parallel)
 library(data.table)
+library(readxl)
+
+
+library(lineprof)
 
 
 
-run_sim <- function( N_pop, N_samp,  N_loc, model = c("bottleneck", "neutral", "decline")) {
+# which species?
+
+i <- 1
+
+# parameters for species
+# N_pop <- as.numeric(unlist(abundances[which(str_detect(abundances$species[i], names(seals))), "Abundance"]))
+
   
-  ## diploid pop size
-  N0 <- round(runif(1, min = N_pop / 10, max = N_pop), 0)
-  #  N0 <- N_pop
-  # N0 <- 10000
-  ## mutation rate
-  # mu <- runif(1, min = 0.0005, max = 0.005)
+
+time_sim_microsats <- function(N_pop){
+  
+  N_pop <- 100
+  N_samp <- 100
+  N_loc <- 20
+  ##
+  N0 <- N_pop
   mu <- 0.0005
-  
-  ## theta
   theta <- 4 * N0 * mu
+  lineprof(simd_data <- microsimr::sim_microsats(theta = theta, n_ind = N_samp, n_loc = N_loc,  n_pop = 1))
   
-  # the 'start' here is actually the temporal end of the bottleneck. I´m just
-  # thinking backwards in time here.
-  
-  #### bottleneck end ####
-  # time is always thought in GENERATIONS
-  latest_end <- 5 # generations ago
-  earliest_end <- 15 # generations ago
-  # see ms manual. time is expressed in units of 4*N0
-  end_bot <- runif(1, min = latest_end / (4*N0), max = earliest_end / (4*N0))
-  
-  
-  #### bottleneck start ####
-  latest_start <- earliest_end + 1 # generations ago / ensure that start is before end
-  earliest_start <- 50 # generations ago
-  # see ms manual. time is expressed in units of 4*N0
-  start_bot <- runif(1, min = latest_start / (4*N0), max = earliest_start / (4*N0))
-  
-  ## bottleneck population size 1 - 1000, expressed relative to N0
-  N_bot <- round(runif(1, min = 0.000001, max = 0.0001), 4)
-  
-  ## historical populaiton size 1 - 100 times as big as current
-  N_hist <- round(runif(1, min = N_pop / 10, max = N_pop), 0)
-  
-  #
-  N_hist_decl <- round(runif(1, min = N0, max = N0 * 1000), 0)
-  
-  # exponential population decline
-  # alpha = -(1/ end_bot) * log(N0/N_hist)
-  
-  if (model == "bottleneck") {
-    ms_options <- paste("-eN", end_bot, N_bot, "-eN", start_bot, N_hist, sep = " ")
-  }
-  
-  if (model == "neutral") {
-    ms_options <- paste("-eN", start_bot, N_hist, sep = " ")
-  }
-  
-  if (model == "decline") {
-    ms_options <- paste("-eN", start_bot, N_hist_decl, sep = " ")
-  }
-  
-  simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
-                                                      n_ind = N_samp,
-                                                      n_loc = N_loc,
-                                                      n_pop = 1,
-                                                      ms_options = ms_options), stringsAsFactors = FALSE)
+}
+
+                    
+                                                   
+                                            
   
   # reshape a little bit
   simd_data <- simd_data[-c(1:2)]
@@ -111,50 +85,59 @@ run_sim <- function( N_pop, N_samp,  N_loc, model = c("bottleneck", "neutral", "
 }
 
 
+lineprof(run_sim( N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck"))
+
 
 
 # number of simulations
-num_sim <- 1
-N_samp <- 20
-N_loc <- 15
+num_sim <- 1000
+
+# for (model in c("bottleneck", "neutral", "decline")) {
+#   
+#   # run on cluster
+#   cl <- makeCluster(getOption("cl.cores", 2))
+#   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
+#   #sims_bot <- do.call(rbind, parLapply(cl, 1:num_sim, run_sim, "bottleneck"))
+#   # sims_bot <- do.call(rbind, parLapply(cl, 1:num_sim, run_sim, "bottleneck"))
+#   sims <- parLapply(cl, 1:num_sim, run_sim, N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = model)
+#   # system.time(sims_bot <- dplyr::rbind_all(sims))
+#   sims_model <- as.data.frame(data.table::rbindlist(sims))
+#   stopCluster(cl)
+#   write.table(sims_model, file = paste("sims_", model, ".txt", sep = ""), row.names = FALSE)
+#   
+# }
 
 
+cl <- makeCluster(getOption("cl.cores", 35))
+clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck")
+sims_bot <- as.data.frame(data.table::rbindlist(sims))
+# sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
+stopCluster(cl)
 
-measure_time <- function(N_pop) {
-  
-  out1 <- system.time(run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck"))
-  out2 <- system.time(run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "neutral"))
-  out3 <- system.time(run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "decline"))
-   
-  out <- out1[3] + out2[3] + out3[3]
-}
-## more than 100 000 gets unrealistic
-out <- lapply(seq(from = 10, to = 10000, by = 1000), measure_time)
-plot(unlist(out))
+cl <- makeCluster(getOption("cl.cores", 35))
+clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral")
+sims_neut <- as.data.frame(data.table::rbindlist(sims))
+# sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
+stopCluster(cl)
+# boxplot(sims$exp_het)
+
+cl <- makeCluster(getOption("cl.cores", 35))
+clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline")
+sims_decl <- as.data.frame(data.table::rbindlist(sims))
+# sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
+stopCluster(cl)
+# boxplot(sims$exp_het)
+
+# sims_bot vs. sims_neut
+sims <- rbind(sims_bot, sims_neut, sims_decl)
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
+#
+write.table(sims, file = "sims_3modafs.txt", row.names = FALSE)
 
 
-
-
-library(data.table)
-measure_ss <- function(N_pop, model = "bottleneck") {
-  
-  rep_sim <- function(niter) {
-    out <- run_sim(N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = model)
-  }
-  out <- lapply(1:30, rep_sim)
-  sims <- as.data.frame(data.table::rbindlist(out))
-}
-
-out <- lapply(seq(from = 100, to = 500000, by = 50000), measure_ss)
-
-all_sims <- as.data.frame(data.table::rbindlist(out))
-
-library(ggplot2)
-ggplot(all_sims, aes(x = as.factor(N0), y = exp_het_mean)) +
-  geom_boxplot() 
-  
-
-plot(unlist(lapply(out, function(x) x$exp_het_mean)))
 
 
 
