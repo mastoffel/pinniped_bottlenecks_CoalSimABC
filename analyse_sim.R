@@ -31,7 +31,7 @@ boxplot(sims$obs_het_sd ~ sims$model)
 all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
 
 # hawaiian monk seal
-genotypes <- all_seals[[1]]
+genotypes <- all_seals[[37]]
 genotypes <- genotypes[4:ncol(genotypes)]
 
 # calculate summary statistics
@@ -39,22 +39,22 @@ obs_stats <- mssumstats(genotypes, type = "microsats")
 
 
 # divide stats and parameters
-sims_stats <- sims[12:(ncol(sims)-1)] # last column is model factor
-sims_param <- sims[1:11]
+sims_stats <- sims[14:(ncol(sims)-1)] # last column is model factor
+sims_param <- sims[1:13]
 models <- sims[["model"]]
 
 library(abc)
 
 # can abc distinguish between the 4 models ?
-cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.01, method="mnlogistic")
+cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.1, method="mnlogistic")
 s <- summary(cv.modsel)
 plot(cv.modsel, names.arg=c("bot", "neut", "decl", "exp"))
 
 
 # model probabilities
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.1, method = "mnlogistic")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "mnlogistic")
 summary(mod_prob)
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.1, method = "rejection")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "rejection")
 summary(mod_prob)
 
 
@@ -84,7 +84,7 @@ gfitpca(target=obs_stats, sumstat=sims_stats, index=models, cprob=.01)
 mylabels <- c("num_alleles_mean","mean_allele_size_sd", "mean_allele_range", "exp_het_mean", "obs_het_mean")
 par(mfrow = c(1,5), mar=c(5,2,4,0))
 for (i in mylabels){
-  hist(sims_stats[models == "decl",i],breaks=40, xlab=i, main="")
+  hist(sims_stats[models == "bot",i],breaks=40, xlab=i, main="")
   abline(v = obs_stats[i], col = 2)
 }
 
@@ -92,16 +92,16 @@ for (i in mylabels){
 
 # parameter inference under the bottleneck model
 
-stat_bot <- subset(sims_stats, subset=models=="decl")
+stat_bot <- subset(sims_stats, subset=models=="bot")
 head(stat_bot)
 
-par_bot <- subset(sims_param, subset=models=="decl")
+par_bot <- subset(sims_param, subset=models=="bot")
 head(par_bot)
 
 # before inference, we see whether a parameter can be estimated at all
 
 cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"N_bot"]), stat_bot, nval=10,
-                     tols=c(.01,.05, .1), method="rejection", statistic = "mean")
+                     tols=c(.01,.05, .3), method="rejection", statistic = "mean")
 summary(cv_res_rej) #should be as low as possible
 plot(cv_res_rej, caption = "rejection")
 
@@ -118,7 +118,7 @@ par_bot <- par_bot %>%
   mutate(start_decl = 4 * N0 * start_decl) %>%
   mutate(start_exp = 4 * N0 * start_exp)
 
-res <- abc(target = unlist(obs_stats), param = par_bot[, "N_hist_decl"], 
+res <- abc(target = unlist(obs_stats), param = par_bot[, "N_bot"], 
            sumstat = stat_bot, tol = 0.1, method="loclinear")
 
 summary(res)

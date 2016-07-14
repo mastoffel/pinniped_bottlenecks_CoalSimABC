@@ -49,14 +49,12 @@ gen_time <- gen_time %>%
 
 
 
-
 # which species? -----------------------------------------
 
 species_name <- "antarctic_fur_seal"
 
 # parameters for species
 N_pop <- as.numeric(abundances[abundances$species == species_name, "Abundance"])
-N_pop <- N_pop / 100
 
 # generation time in years
 gen_time <- as.numeric(gen_time[gen_time$dataset_name == species_name, "gen_time"])
@@ -68,28 +66,25 @@ N_loc <- 50
 
 
 
-
-
-run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "decline", "expansion"), gen_time) {
+run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutral"), gen_time) {
   
   ## diploid effective population size - size 1/10 to 1 of census
   # minium proportion of effective population size to census:
   # 1 /
   prop_prior_N <- 10
   
-  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
+  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 2)
   # to keep the historical population size in the same prior range as the current population
   # size, relative to N_pop
   Ne_prop <-   N_pop / N0
   
   ## mutation rate
   mu <- runif(1, min = 0.00005, max = 0.0005)
-  # mu <- 0.0005
   ## theta
   theta <- 4 * N0 * mu
   
   sequence_correct <- FALSE
-  #### bottleneck end ####
+
   while (sequence_correct == FALSE) {
     # time is always thought in GENERATIONS
     latest_end <- (2016 - 2000) / gen_time # generations ago, 2000 as latest end
@@ -113,17 +108,6 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   ## historical population size ranges in the same absolute priors as the current population size
   N_hist <- round(runif(1, min = (1 / prop_prior_N) * Ne_prop, max = Ne_prop), 5)
   #
-  # Ice age ended roughly 12000 years ago
-  earliest_start_decl <- 15000/gen_time 
-  # latest start of decline roughly 50 years ago
-  latest_start_decl <- 50/gen_time 
-  start_decl <- runif(1, min =earliest_start_decl  / (4*N0), max = latest_start_decl / (4*N0))
-  # start of expansion and decline have same broad priors
-  start_exp <- start_decl 
-  
-  pop_param_decl_exp <- 50 # population was a maximum of 50 times larger or smaller in the past
-  N_hist_decl <- round(runif(1, min = Ne_prop, max = pop_param_decl_exp * Ne_prop), 5)
-  N_hist_exp <- round(runif(1, min = Ne_prop / pop_param_decl_exp, max = Ne_prop), 5)
   
   # exponential population decline
   # alpha = -(1/ end_bot) * log(N0/N_hist)
@@ -135,15 +119,6 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   if (model == "neutral") {
     ms_options <- paste("-eN", start_bot, N_hist, sep = " ")
   }
-  
-  if (model == "decline") {
-    ms_options <- paste("-eN", start_decl, N_hist_decl, sep = " ")
-  }
-  
-  if (model == "expansion") {
-    ms_options <- paste("-eN", start_exp, N_hist_exp, sep = " ")
-  }
-  
   
   p_single = runif(1, min = 0.6, max = 0.95) # probability of multi-step mutation is 0.2
   sigma2_g = runif(1, min = 5, max = 70) # typical step-size ~7
@@ -161,8 +136,6 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   sim_param <- data.frame(N0, mu, theta,
                           start_bot, end_bot,
                           N_bot, N_hist,
-                          start_decl, start_exp,
-                          N_hist_decl, N_hist_exp,
                           p_single, sigma2_g)
   out <- cbind(sim_param, sum_stats)
   
@@ -187,46 +160,14 @@ sims_bot <- as.data.frame(data.table::rbindlist(sims))
 sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral", gen_time = gen_time)
 sims_neut <- as.data.frame(data.table::rbindlist(sims))
 
-sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline", gen_time = gen_time)
-sims_decl <- as.data.frame(data.table::rbindlist(sims))
-
-sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="expansion", gen_time = gen_time)
-sims_exp <- as.data.frame(data.table::rbindlist(sims))
-
 stopCluster(cl)
 
-# cl <- makeCluster(getOption("cl.cores", detectCores()))
-# clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-# sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral", gen_time = gen_time)
-# sims_neut <- as.data.frame(data.table::rbindlist(sims))
-# # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-# stopCluster(cl)
-# # boxplot(sims$exp_het)
-# 
-# cl <- makeCluster(getOption("cl.cores", detectCores()))
-# clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-# sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline", gen_time = gen_time)
-# sims_decl <- as.data.frame(data.table::rbindlist(sims))
-# # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-# stopCluster(cl)
-# 
-# 
-# cl <- makeCluster(getOption("cl.cores", detectCores()))
-# clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-# sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="expansion", gen_time = gen_time)
-# sims_exp <- as.data.frame(data.table::rbindlist(sims))
-# # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-# stopCluster(cl)
 
 
 
-sims <- rbind(sims_bot, sims_neut, sims_decl, sims_exp) #sims_exp
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl", num_sim), rep("exp", num_sim))
+sims <- rbind(sims_bot, sims_neut) 
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-# sims_bot vs. sims_neut
-# sims <- rbind(sims_bot, sims_neut, sims_decl)
-# sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
-#
-write.table(sims, file = "sims_full_afs.txt", row.names = FALSE)
 
+write.table(sims, file = "sims_2mod_afs.txt", row.names = FALSE)
 
