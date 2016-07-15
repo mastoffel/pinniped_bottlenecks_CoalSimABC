@@ -38,15 +38,14 @@ names(seals) <- str_replace(names(seals), "_cl_2", "")
 abundances <- read_excel("../data/abundances.xlsx", sheet = 1)
 
 # load generation times
-gen_time <- read_excel("../data/seal_data_krueger.xlsx", sheet = 1)[-1]
-names(gen_time) <- str_replace(names(gen_time), " ", "_")
+gen_time <- read_excel("../data/seal_data_krueger.xlsx", sheet = 1)[c("dataset_name", "Generation time")]
+names(gen_time) <- str_replace_all(names(gen_time), " ", "_")
 gen_time <- gen_time %>% 
-  select(dataset_name, Generation_time) %>%
   filter(!is.na(dataset_name)) %>% 
   # generation time of arctic ringed seal for other ringed seals
   mutate(Generation_time = ifelse(is.na(Generation_time), 6804, Generation_time)) %>%
   mutate(gen_time = Generation_time / 356)
-
+# mean(gen_time$gen_time)
 
 
 
@@ -56,18 +55,15 @@ species_name <- "antarctic_fur_seal"
 
 # parameters for species
 N_pop <- as.numeric(abundances[abundances$species == species_name, "Abundance"])
-N_pop <- N_pop / 100
+N_pop <- 100000
 
 # generation time in years
 gen_time <- as.numeric(gen_time[gen_time$dataset_name == species_name, "gen_time"])
-
+gen_time <- 13.07 # mean generation time across species
 # sampling 
-N_samp <- 150
+N_samp <- 100
 N_loc <- 50
 ##
-
-
-
 
 
 run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutral", "decline", "expansion"), gen_time) {
@@ -77,14 +73,14 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   # 1 /
   prop_prior_N <- 10
   
-  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
+  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop * prop_prior_N), 0)
   # to keep the historical population size in the same prior range as the current population
   # size, relative to N_pop
   Ne_prop <-   N_pop / N0
   
   ## mutation rate
-  mu <- runif(1, min = 0.00005, max = 0.0005)
-  # mu <- 0.0005
+  # mu <- runif(1, min = 0.00005, max = 0.0005)
+  mu <- 0.0005
   ## theta
   theta <- 4 * N0 * mu
   
@@ -108,25 +104,28 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   }
   
   ## bottleneck population size reduction from 1/1000 to 1/1000000
-  N_bot <- round(runif(1, min = 0.000001, max = 0.001), 7) 
+  N_bot <- round(runif(1, min = 0.000001, max = 0.01), 7) 
   
   ## historical population size ranges in the same absolute priors as the current population size
-  N_hist <- round(runif(1, min = (1 / prop_prior_N) * Ne_prop, max = Ne_prop), 5)
+  N_hist <- round(runif(1, min = (1 / prop_prior_N) * Ne_prop, max = Ne_prop * prop_prior_N), 7)
   #
   # Ice age ended roughly 12000 years ago
   earliest_start_decl <- 15000/gen_time 
   # latest start of decline roughly 50 years ago
   latest_start_decl <- 50/gen_time 
-  start_decl <- runif(1, min =earliest_start_decl  / (4*N0), max = latest_start_decl / (4*N0))
+  
+  start_decl <- runif(1, min =  latest_start_decl / (4*N0), max = earliest_start_decl / (4*N0))
   # start of expansion and decline have same broad priors
-  start_exp <- start_decl 
+  start_exp <- runif(1, min =  latest_start_decl / (4*N0), max = earliest_start_decl / (4*N0))
   
   pop_param_decl_exp <- 50 # population was a maximum of 50 times larger or smaller in the past
-  N_hist_decl <- round(runif(1, min = Ne_prop, max = pop_param_decl_exp * Ne_prop), 5)
-  N_hist_exp <- round(runif(1, min = Ne_prop / pop_param_decl_exp, max = Ne_prop), 5)
+  N_hist_decl <- round(runif(1, min = Ne_prop, max = pop_param_decl_exp * Ne_prop), 7)
+  N_hist_exp <- round(runif(1, min = Ne_prop / pop_param_decl_exp, max = Ne_prop), 7)
   
   # exponential population decline
-  # alpha = -(1/ end_bot) * log(N0/N_hist)
+  alpha_decl <-  -(1/ start_decl) * log((N_hist_decl * N0) / N0)
+  alpha_exp <- -(1/ start_exp) * log((N_hist_exp * N_pop) / N0 )
+  # 
   
   if (model == "bottleneck") {
     ms_options <- paste("-eN", end_bot, N_bot, "-eN", start_bot, N_hist, sep = " ")
@@ -137,11 +136,11 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   }
   
   if (model == "decline") {
-    ms_options <- paste("-eN", start_decl, N_hist_decl, sep = " ")
+    ms_options <- paste( "-eN", start_decl, N_hist_decl, sep = " ")
   }
   
   if (model == "expansion") {
-    ms_options <- paste("-eN", start_exp, N_hist_exp, sep = " ")
+    ms_options <- paste("-G", alpha_exp, "-eN", start_exp, N_hist_exp, sep = " ")
   }
   
   
@@ -175,7 +174,7 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
 
 
 # number of simulations
-num_sim <- 100000
+num_sim <- 1000000
 
 
 cl <- makeCluster(getOption("cl.cores", detectCores()))
@@ -227,6 +226,6 @@ sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl", num_sim),
 # sims <- rbind(sims_bot, sims_neut, sims_decl)
 # sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
 #
-write.table(sims, file = "sims_full_afs.txt", row.names = FALSE)
+write.table(sims, file = "sims_full_broad_priors.txt", row.names = FALSE)
 
 

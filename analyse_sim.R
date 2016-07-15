@@ -3,35 +3,36 @@ library(devtools)
 # install_github("mastoffel/sealABC")
 library(sealABC)
 
-sims <- read.table("sims_full_afs.txt", stringsAsFactors = FALSE)
+sims <- read.table("sims_2mod_afs.txt", stringsAsFactors = FALSE)
 names(sims) <- unlist(sims[1, ])
 sims <- sims[-1, ]
 # transform everything to numeric
 sims <- cbind(do.call(cbind, lapply(sims[-ncol(sims)], as.numeric)), sims[ncol(sims)])
 
 #
-par(mfcol = c(2,3))
+par(mfcol = c(3,3))
 boxplot(sims$num_alleles_mean ~ sims$model)
 boxplot(sims$mean_allele_size_sd ~ sims$model)
 boxplot(sims$mean_allele_range ~ sims$model)
 boxplot(sims$exp_het_mean ~ sims$model)
 boxplot(sims$obs_het_mean ~ sims$model)
+boxplot(sims$mratio_mean ~ sims$model)
 
 
-par(mfcol = c(2,2))
+par(mfcol = c(3,3))
 boxplot(sims$num_alleles_sd ~ sims$model)
 boxplot(sims$sd_allele_size_sd ~ sims$model)
 boxplot(sims$sd_allele_range ~ sims$model)
 boxplot(sims$exp_het_sd ~ sims$model)
 boxplot(sims$obs_het_sd ~ sims$model)
-
+boxplot(sims$mratio_sd ~ sims$model)
 
 
 # load all seal data
 all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
 
 # hawaiian monk seal
-genotypes <- all_seals[[37]]
+genotypes <- all_seals[[41]]
 genotypes <- genotypes[4:ncol(genotypes)]
 
 # calculate summary statistics
@@ -39,22 +40,27 @@ obs_stats <- mssumstats(genotypes, type = "microsats")
 
 
 # divide stats and parameters
-sims_stats <- sims[14:(ncol(sims)-1)] # last column is model factor
-sims_param <- sims[1:13]
+sims_stats <- sims[10:(ncol(sims)-1)] # last column is model factor
+sims_param <- sims[1:9]
 models <- sims[["model"]]
 
 library(abc)
 
+# select best summary statistics
+sims_stats <- sims_stats[c("num_alleles_mean", "mean_allele_range", "mratio_mean")]
+obs_stats <- obs_stats[c("num_alleles_mean", "mean_allele_range", "mratio_mean")]
+
+
 # can abc distinguish between the 4 models ?
-cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.1, method="mnlogistic")
+cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.01, method="rejection")
 s <- summary(cv.modsel)
-plot(cv.modsel, names.arg=c("bot", "neut", "decl", "exp"))
+plot(cv.modsel, names.arg=c("bot", "neut"))
 
 
 # model probabilities
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "mnlogistic")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.1, method = "mnlogistic")
 summary(mod_prob)
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "rejection")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.2, method = "rejection")
 summary(mod_prob)
 
 
@@ -82,6 +88,7 @@ gfitpca(target=obs_stats, sumstat=sims_stats, index=models, cprob=.01)
 
 # posterior predictive checks (Gelman) // critics: using the data twice. 
 mylabels <- c("num_alleles_mean","mean_allele_size_sd", "mean_allele_range", "exp_het_mean", "obs_het_mean")
+mylabels <- c("num_alleles_mean", "mean_allele_range", "mratio_mean")
 par(mfrow = c(1,5), mar=c(5,2,4,0))
 for (i in mylabels){
   hist(sims_stats[models == "bot",i],breaks=40, xlab=i, main="")
@@ -111,21 +118,21 @@ library(dplyr)
 par_bot <- par_bot %>% 
   mutate(N_bot = N0 * N_bot) %>%
   mutate(N_hist = N0 * N_hist) %>%
-  mutate(N_hist_decl = N0 * N_hist_decl) %>%
-  mutate(N_hist_exp = N0 * N_hist_exp) %>%
+  #mutate(N_hist_decl = N0 * N_hist_decl) %>%
+  #mutate(N_hist_exp = N0 * N_hist_exp) %>%
   mutate(start_bot = 4 * N0 * start_bot) %>%
-  mutate(end_bot = 4 * N0 * end_bot) %>%
-  mutate(start_decl = 4 * N0 * start_decl) %>%
-  mutate(start_exp = 4 * N0 * start_exp)
+  mutate(end_bot = 4 * N0 * end_bot) # %>%
+  #mutate(start_decl = 4 * N0 * start_decl) %>%
+  #mutate(start_exp = 4 * N0 * start_exp)
 
-res <- abc(target = unlist(obs_stats), param = par_bot[, "N_bot"], 
-           sumstat = stat_bot, tol = 0.1, method="loclinear")
+res <- abc(target = unlist(obs_stats), param = par_bot[, "end_bot"], 
+           sumstat = stat_bot, tol = 0.05, method="loclinear")
 
 summary(res)
-hist(res)
+hist(res, breaks = 100)
 
 par(cex=.8)
-plot(res, param=par_bot$N_bot)
+plot(res, param=par_bot$start_bot)
 
 
 

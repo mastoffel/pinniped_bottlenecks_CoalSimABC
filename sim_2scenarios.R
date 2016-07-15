@@ -1,7 +1,7 @@
 # simulating microsatellite data and calculating summary statistics
 
 library(devtools)
-# install_github("mastoffel/sealABC", dependecies = TRUE)
+# install_github("mastoffel/sealABC")
 library(sealABC)
 # devtools::install_github("andersgs/microsimr")
 library(microsimr)
@@ -63,7 +63,6 @@ gen_time <- as.numeric(gen_time[gen_time$dataset_name == species_name, "gen_time
 N_samp <- 150
 N_loc <- 50
 ##
-
 
 
 run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutral"), gen_time) {
