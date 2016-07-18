@@ -3,11 +3,15 @@ library(devtools)
 # install_github("mastoffel/sealABC")
 library(sealABC)
 
-sims <- read.table("sims_2mod_afs.txt", stringsAsFactors = FALSE)
+sims <- read.table("sims_full_broad_priors.txt", stringsAsFactors = FALSE)
 names(sims) <- unlist(sims[1, ])
 sims <- sims[-1, ]
 # transform everything to numeric
 sims <- cbind(do.call(cbind, lapply(sims[-ncol(sims)], as.numeric)), sims[ncol(sims)])
+
+
+p <- ggplot(sims, aes(x = model, y = num_alleles_mean)) + geom_boxplot()
+p
 
 #
 par(mfcol = c(3,3))
@@ -17,6 +21,8 @@ boxplot(sims$mean_allele_range ~ sims$model)
 boxplot(sims$exp_het_mean ~ sims$model)
 boxplot(sims$obs_het_mean ~ sims$model)
 boxplot(sims$mratio_mean ~ sims$model)
+
+library(ggplot2)
 
 
 par(mfcol = c(3,3))
@@ -32,7 +38,7 @@ boxplot(sims$mratio_sd ~ sims$model)
 all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
 
 # hawaiian monk seal
-genotypes <- all_seals[[41]]
+genotypes <- all_seals[[4]]
 genotypes <- genotypes[4:ncol(genotypes)]
 
 # calculate summary statistics
@@ -40,8 +46,8 @@ obs_stats <- mssumstats(genotypes, type = "microsats")
 
 
 # divide stats and parameters
-sims_stats <- sims[10:(ncol(sims)-1)] # last column is model factor
-sims_param <- sims[1:9]
+sims_stats <- sims[14:(ncol(sims)-1)] # last column is model factor
+sims_param <- sims[1:13]
 models <- sims[["model"]]
 
 library(abc)
@@ -54,18 +60,17 @@ obs_stats <- obs_stats[c("num_alleles_mean", "mean_allele_range", "mratio_mean")
 # can abc distinguish between the 4 models ?
 cv.modsel <- cv4postpr(models, sims_stats, nval=5, tol=.01, method="rejection")
 s <- summary(cv.modsel)
-plot(cv.modsel, names.arg=c("bot", "neut"))
+plot(cv.modsel, names.arg=c("bot", "neut", "decl", "exp"))
 
 
 # model probabilities
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.1, method = "mnlogistic")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "mnlogistic")
 summary(mod_prob)
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.2, method = "rejection")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "rejection")
 summary(mod_prob)
 
 
 # goodness of fit
-
 res_gfit_bott <- gfit(target=obs_stats, sumstat= sims_stats[models == "bot",], statistic=mean, nb.replicate=100)
 plot(res_gfit_bott, main="Histogram under H0")
 summary(res_gfit_bott)
@@ -87,9 +92,10 @@ gfitpca(target=obs_stats, sumstat=sims_stats, index=models, cprob=.01)
 
 
 # posterior predictive checks (Gelman) // critics: using the data twice. 
-mylabels <- c("num_alleles_mean","mean_allele_size_sd", "mean_allele_range", "exp_het_mean", "obs_het_mean")
+mylabels <- c("num_alleles_mean","mean_allele_size_sd", "mean_allele_range", "exp_het_mean", "obs_het_mean",
+              "mratio_mean")
 mylabels <- c("num_alleles_mean", "mean_allele_range", "mratio_mean")
-par(mfrow = c(1,5), mar=c(5,2,4,0))
+par(mfrow = c(2,3), mar=c(5,2,4,0))
 for (i in mylabels){
   hist(sims_stats[models == "bot",i],breaks=40, xlab=i, main="")
   abline(v = obs_stats[i], col = 2)
@@ -107,7 +113,7 @@ head(par_bot)
 
 # before inference, we see whether a parameter can be estimated at all
 
-cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"N_bot"]), stat_bot, nval=10,
+cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"N_bot"]), stat_bot, nval=5,
                      tols=c(.01,.05, .3), method="rejection", statistic = "mean")
 summary(cv_res_rej) #should be as low as possible
 plot(cv_res_rej, caption = "rejection")
@@ -118,15 +124,15 @@ library(dplyr)
 par_bot <- par_bot %>% 
   mutate(N_bot = N0 * N_bot) %>%
   mutate(N_hist = N0 * N_hist) %>%
-  #mutate(N_hist_decl = N0 * N_hist_decl) %>%
-  #mutate(N_hist_exp = N0 * N_hist_exp) %>%
+  mutate(N_hist_decl = N0 * N_hist_decl) %>%
+  mutate(N_hist_exp = N0 * N_hist_exp) %>%
   mutate(start_bot = 4 * N0 * start_bot) %>%
-  mutate(end_bot = 4 * N0 * end_bot) # %>%
-  #mutate(start_decl = 4 * N0 * start_decl) %>%
-  #mutate(start_exp = 4 * N0 * start_exp)
+  mutate(end_bot = 4 * N0 * end_bot)  %>%
+  mutate(start_decl = 4 * N0 * start_decl) %>%
+  mutate(start_exp = 4 * N0 * start_exp)
 
-res <- abc(target = unlist(obs_stats), param = par_bot[, "end_bot"], 
-           sumstat = stat_bot, tol = 0.05, method="loclinear")
+res <- abc(target = unlist(obs_stats), param = par_bot[, "N_bot"], 
+           sumstat = stat_bot, tol = 0.01, method="ridge")
 
 summary(res)
 hist(res, breaks = 100)

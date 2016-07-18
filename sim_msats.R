@@ -112,7 +112,7 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   # Ice age ended roughly 12000 years ago
   earliest_start_decl <- 15000/gen_time 
   # latest start of decline roughly 50 years ago
-  latest_start_decl <- 50/gen_time 
+  latest_start_decl <- 5000/gen_time 
   
   start_decl <- runif(1, min =  latest_start_decl / (4*N0), max = earliest_start_decl / (4*N0))
   # start of expansion and decline have same broad priors
@@ -174,7 +174,7 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
 
 
 # number of simulations
-num_sim <- 1000000
+num_sim <- 300000
 
 
 cl <- makeCluster(getOption("cl.cores", detectCores()))
@@ -226,6 +226,6 @@ sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl", num_sim),
 # sims <- rbind(sims_bot, sims_neut, sims_decl)
 # sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
 #
-write.table(sims, file = "sims_full_broad_priors.txt", row.names = FALSE)
+write.table(sims, file = "sims_full_smaller_priors.txt", row.names = FALSE)
 
 
