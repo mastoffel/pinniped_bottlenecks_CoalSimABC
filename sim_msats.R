@@ -55,13 +55,14 @@ species_name <- "antarctic_fur_seal"
 
 # parameters for species
 N_pop <- as.numeric(abundances[abundances$species == species_name, "Abundance"])
+
 N_pop <- 100000
 
 # generation time in years
 gen_time <- as.numeric(gen_time[gen_time$dataset_name == species_name, "gen_time"])
 gen_time <- 13.07 # mean generation time across species
 # sampling 
-N_samp <- 100
+N_samp <- 150
 N_loc <- 50
 ##
 
@@ -79,8 +80,8 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   Ne_prop <-   N_pop / N0
   
   ## mutation rate
-  # mu <- runif(1, min = 0.00005, max = 0.0005)
-  mu <- 0.0005
+  mu <- runif(1, min = 0.000005, max = 0.0005)
+  # mu <- 0.0005
   ## theta
   theta <- 4 * N0 * mu
   
@@ -104,7 +105,7 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   }
   
   ## bottleneck population size reduction from 1/1000 to 1/1000000
-  N_bot <- round(runif(1, min = 0.000001, max = 0.01), 7) 
+  N_bot <- round(runif(1, min = 0.000001, max = 0.001), 7) 
   
   ## historical population size ranges in the same absolute priors as the current population size
   N_hist <- round(runif(1, min = (1 / prop_prior_N) * Ne_prop, max = Ne_prop * prop_prior_N), 7)
@@ -112,13 +113,13 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   # Ice age ended roughly 12000 years ago
   earliest_start_decl <- 15000/gen_time 
   # latest start of decline roughly 50 years ago
-  latest_start_decl <- 5000/gen_time 
+  latest_start_decl <- 1000/gen_time 
   
   start_decl <- runif(1, min =  latest_start_decl / (4*N0), max = earliest_start_decl / (4*N0))
   # start of expansion and decline have same broad priors
   start_exp <- runif(1, min =  latest_start_decl / (4*N0), max = earliest_start_decl / (4*N0))
   
-  pop_param_decl_exp <- 50 # population was a maximum of 50 times larger or smaller in the past
+  pop_param_decl_exp <- 100 # population was a maximum of 50 times larger or smaller in the past
   N_hist_decl <- round(runif(1, min = Ne_prop, max = pop_param_decl_exp * Ne_prop), 7)
   N_hist_exp <- round(runif(1, min = Ne_prop / pop_param_decl_exp, max = Ne_prop), 7)
   
@@ -136,7 +137,7 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   }
   
   if (model == "decline") {
-    ms_options <- paste( "-eN", start_decl, N_hist_decl, sep = " ")
+    ms_options <- paste("-G", alpha_decl, "-eN", start_decl, N_hist_decl, sep = " ")
   }
   
   if (model == "expansion") {
@@ -157,7 +158,7 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
   
   sum_stats <- sealABC::mssumstats(simd_data)
   
-  sim_param <- data.frame(N0, mu, theta,
+  sim_param <- data.frame(N_pop, N0, mu, theta,
                           start_bot, end_bot,
                           N_bot, N_hist,
                           start_decl, start_exp,
@@ -169,15 +170,14 @@ run_sim <- function(niter, N_pop, N_samp, N_loc, model = c("bottleneck", "neutra
 }
 
 
-# lineprof(run_sim( N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck"))
-
-
+######### all simulations for 100000 ###############
+# census size
+N_pop <- 100000
 
 # number of simulations
-num_sim <- 300000
+num_sim <- 1000000
 
-
-cl <- makeCluster(getOption("cl.cores", detectCores()))
+cl <- makeCluster(getOption("cl.cores", detectCores() - 1))
 clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
 
 sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck", gen_time = gen_time)
@@ -194,38 +194,73 @@ sims_exp <- as.data.frame(data.table::rbindlist(sims))
 
 stopCluster(cl)
 
-# cl <- makeCluster(getOption("cl.cores", detectCores()))
-# clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-# sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral", gen_time = gen_time)
-# sims_neut <- as.data.frame(data.table::rbindlist(sims))
-# # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-# stopCluster(cl)
-# # boxplot(sims$exp_het)
-# 
-# cl <- makeCluster(getOption("cl.cores", detectCores()))
-# clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-# sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline", gen_time = gen_time)
-# sims_decl <- as.data.frame(data.table::rbindlist(sims))
-# # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-# stopCluster(cl)
-# 
-# 
-# cl <- makeCluster(getOption("cl.cores", detectCores()))
-# clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
-# sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="expansion", gen_time = gen_time)
-# sims_exp <- as.data.frame(data.table::rbindlist(sims))
-# # sims_neut <- do.call(rbind, parLapply(1:num_sim, run_sim, "neutral"))
-# stopCluster(cl)
+sims <- rbind(sims_bot, sims_neut, sims_decl, sims_exp) #sims_exp
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl", num_sim), rep("exp", num_sim))
+
+write.table(sims, file = "sims_middleN_100000.txt", row.names = FALSE)
 
 
+
+
+
+
+######### all simulations for 10000 ###############
+# census size
+N_pop <- 10000
+
+# number of simulations
+num_sim <- 1000000
+
+cl <- makeCluster(getOption("cl.cores", detectCores() - 1))
+clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck", gen_time = gen_time)
+sims_bot <- as.data.frame(data.table::rbindlist(sims))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral", gen_time = gen_time)
+sims_neut <- as.data.frame(data.table::rbindlist(sims))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline", gen_time = gen_time)
+sims_decl <- as.data.frame(data.table::rbindlist(sims))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="expansion", gen_time = gen_time)
+sims_exp <- as.data.frame(data.table::rbindlist(sims))
+
+stopCluster(cl)
 
 sims <- rbind(sims_bot, sims_neut, sims_decl, sims_exp) #sims_exp
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl", num_sim), rep("exp", num_sim))
 
-# sims_bot vs. sims_neut
-# sims <- rbind(sims_bot, sims_neut, sims_decl)
-# sims$model <- c(rep("bot", num_sim), rep("neut", num_sim),  rep("decl", num_sim))
-#
-write.table(sims, file = "sims_full_smaller_priors.txt", row.names = FALSE)
+write.table(sims, file = "sims_smallN_10000.txt", row.names = FALSE)
 
 
+
+
+######### all simulations for 1000000 ###############
+# census size
+N_pop <- 1000000
+
+# number of simulations
+num_sim <- 1000000
+
+cl <- makeCluster(getOption("cl.cores", detectCores() - 1))
+clusterEvalQ(cl, c(library("strataG"), library("splitstackshape")))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model = "bottleneck", gen_time = gen_time)
+sims_bot <- as.data.frame(data.table::rbindlist(sims))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="neutral", gen_time = gen_time)
+sims_neut <- as.data.frame(data.table::rbindlist(sims))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="decline", gen_time = gen_time)
+sims_decl <- as.data.frame(data.table::rbindlist(sims))
+
+sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, N_samp = N_samp, N_loc = N_loc, model ="expansion", gen_time = gen_time)
+sims_exp <- as.data.frame(data.table::rbindlist(sims))
+
+stopCluster(cl)
+
+sims <- rbind(sims_bot, sims_neut, sims_decl, sims_exp) #sims_exp
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl", num_sim), rep("exp", num_sim))
+
+write.table(sims, file = "sims_largeN_1000000.txt", row.names = FALSE)
