@@ -19,6 +19,7 @@ sims3 <- fread("sims_50000_6mod_nr3.txt", stringsAsFactors = FALSE)
 
 sims <- rbindlist(list(sims, sims2, sims3), use.names = TRUE, fill = TRUE)
 
+sims <- fread("sims_50000_6mod_lowmu.txt", stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 
 # sims_melt <- data.table::melt(sims, id.vars )
@@ -56,7 +57,7 @@ all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop
 lapply(all_seals, function(x) range(unlist(x[4:ncol(x)]), na.rm = TRUE))
 
 # hawaiian monk seal
-genotypes <- all_seals[[13]]
+genotypes <- all_seals[[36]]
 genotypes <- genotypes[4:ncol(genotypes)]
 
 # calculate summary statistics
@@ -71,23 +72,23 @@ models <- sims[["model"]]
 # ASchoice <- AS.select(obs_stats, sims_param, sims_stats)
 # ASchoice$best
 
-# select best summary statistics
-sims_stats <- sims_stats[c("num_alleles_mean", "mean_allele_range", "exp_het_mean", "mean_allele_size_var", "mratio_mean", "het_excess" )] # "mean_allele_size_var"
-obs_stats <- obs_stats[c("num_alleles_mean", "mean_allele_range", "exp_het_mean","mean_allele_size_var", "mratio_mean", "het_excess" )] # "mratio_mean",
+# select best summary statistics ("mean_allele_size_var", "mean_allele_size_var",)
+sims_stats <- sims_stats[c("num_alleles_mean", "mean_allele_range", "exp_het_mean", "mratio_mean")] # "mean_allele_size_var"
+obs_stats <- obs_stats[c("num_alleles_mean", "mean_allele_range", "exp_het_mean", "mratio_mean")] # "mratio_mean",
 
 
 # can abc distinguish between the 4 models ?
 # sims_stats <- as.matrix(sims_stats)
 # sims_stats[is.infinite(sims_stats)] <- NA
-cv.modsel <- cv4postpr(models, sims_stats, nval=100, tol=.01, method="rejection", subset = !(is.infinite(sims_stats$mratio_mean)))
+cv.modsel <- cv4postpr(models, sims_stats, nval=100, tol=.01, method="rejection")
 s <- summary(cv.modsel)
 plot(cv.modsel, names.arg=c("bot", "neut", "decl", "exp"))
 
 
 # model probabilities
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.001, method = "mnlogistic")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "mnlogistic")
 summary(mod_prob)
-mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.001, method = "rejection")
+mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.01, method = "rejection")
 summary(mod_prob)
 mod_prob <- postpr(obs_stats, models, sims_stats, tol = 0.05, method = "neuralnet")
 summary(mod_prob)
@@ -97,7 +98,7 @@ summary(mod_prob)
 sims_stats <- as.matrix(sims_stats)
 # sims_stats <- sims_stats[-(rowSums(is.infinite(sims_stats))>0), ]
 
-res_gfit_bott <- gfit(target=obs_stats, sumstat=sims_stats[models == "bot",], tol = 0.01, statistic=mean, nb.replicate=10)
+res_gfit_bott <- gfit(target=obs_stats, sumstat=sims_stats[models == "bot",], tol = 0.01, statistic=mean, nb.replicate=1000)
 plot(res_gfit_bott, main="Histogram under H0")
 summary(res_gfit_bott)
 

@@ -99,7 +99,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   Ne_prop <-   N_pop / N0  
   
   ## mutation rate
-  mu <- runif(1, min = 5e-05, max = 5e-03)
+ # mu <- runif(1, min = 5e-05, max = 5e-03)
   mu <- 0.00005
   ## theta
   theta <- 4 * N0 * mu
@@ -195,15 +195,17 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   if (model == "decline_IA") {
-    ms_options <- paste("-G", alpha_decl_IA, "-eN", start_decl_IA, N_hist_decl, sep = " ") 
+   # ms_options <- paste("-G", alpha_decl_IA, "-eN", start_decl_IA, N_hist_decl, sep = " ") 
+    ms_options <- paste("-eN", start_decl_IA, N_hist_decl, sep = " ") 
   }
   
   if (model == "expansion_IA") {
-    ms_options <- paste("-G", alpha_exp_IA, "-eN", start_exp_IA, N_hist_exp, sep = " ") 
+   # ms_options <- paste("-G", alpha_exp_IA, "-eN", start_exp_IA, N_hist_exp, sep = " ") 
+    ms_options <- paste("-eN", start_exp_IA, N_hist_exp, sep = " ") 
   }
   
   p_single = runif(1, min = 0.7, max = 0.99) # probability of multi-step mutation is 0.2
-  sigma2_g = runif(1, min = 5, max = 30) # typical step-size ~7
+  sigma2_g = runif(1, min = 30, max = 70) # typical step-size ~7
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -264,7 +266,7 @@ sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl_IA", num_sim), 
                 rep("exp_IA", num_sim), rep("decl_rec", num_sim), rep("exp_rec", num_sim))
 
-write.table(sims, file = "sims_50000_6mod_lowmu.txt", row.names = FALSE)
+write.table(sims, file = "sims_50000_6mod_lowmu_highsigma.txt", row.names = FALSE)
 
 # sims <- rbind(sims_bot, sims_neut, sims_decl_IA, sims_exp_IA, sims_decl_rec, sims_exp_rec) #sims_exp
 
