@@ -8,18 +8,9 @@ library("abctools")
 library(abc)
 library(ggplot2)
 
-sims <- fread("sims_50000_6mod.txt", stringsAsFactors = FALSE)
+sims <- fread("sims_simple_pop100k_sim50k.txt", stringsAsFactors = FALSE)
 # sims <- as.data.frame(sims)
 
-sims2 <- fread("sims_50000_6mod_nr2.txt", stringsAsFactors = FALSE)
-# sims2 <- as.data.frame(sims2)
-
-sims3 <- fread("sims_50000_6mod_nr3.txt", stringsAsFactors = FALSE)
-# sims3 <- as.data.frame(sims2)
-
-sims <- rbindlist(list(sims, sims2, sims3), use.names = TRUE, fill = TRUE)
-
-sims <- fread("sims_50000_6mod_lowmu.txt", stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 
 # sims_melt <- data.table::melt(sims, id.vars )
@@ -39,7 +30,7 @@ boxplot(sims$exp_het_mean ~ sims$model)
 boxplot(sims$obs_het_mean ~ sims$model)
 boxplot(sims$mratio_mean ~ sims$model)
 # boxplot(sims$g2 ~ sims$model)
-boxplot(sims$het_excess ~ sims$model)
+boxplot(sims$mean_allele_size_var ~ sims$model)
 
 
 par(mfcol = c(3,3))

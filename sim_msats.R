@@ -19,22 +19,6 @@ library(truncnorm)
 all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
 
 
-### select 28 datasets //
-# seals <- all_seals[c("antarctic_fur_seal", "galapagos_fur_seal", "stellers_sea_lion_cl_1",
-#                      "grey_seal_orkneys", "harbour_seal_waddensee_cl_1", "galapagos_sea_lion",
-#                      "south_american_fur_seal_cl_1", "hooded_seal", "mediterranean_monk_seal",
-#                      "hawaiian_monk_seal", "bearded_seal_cl_1", "crabeater_seal",
-#                      "leopard_seal", "arctic_ringed_seal", "ross_seal",
-#                      "weddell_seal_cl_2", "northern_fur_seal_cl_1", "atlantic_walrus_cl_2",
-#                      "nes_cl_2", "ses_cl_4", "california_sea_lion", "south_american_sea_lion",
-#                      "new_zealand_sea_lion", "saimaa_ringed_seal_cl_1", "lagoda_ringed_seal",
-#                      "baltic_ringed_seal", "new_zealand_fur_seal", "australian_fur_seal")]
-
-
-# modify and simplify seal names
-# names(seals) <- str_replace(names(seals), "_cl_1", "")
-# names(seals) <- str_replace(names(seals), "_cl_2", "")
-
 # # load abundances
 # abundances <- read_excel("../data/abundances.xlsx", sheet = 1)
 # 
@@ -50,30 +34,16 @@ all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop
 
 
 
-# which species? -----------------------------------------
-
-# species_name <- "antarctic_fur_seal"
-
-# parameters for species
-# N_pop <- as.numeric(abundances[abundances$species == species_name, "Abundance"])
-
-# N_pop <- 100000
-
-# generation time in years
-# gen_time <- as.numeric(gen_time[gen_time$dataset_name == species_name, "gen_time"])
-
-# sampling 
-
-
-
 gen_time <- 13.07 # mean generation time across species
 
 
 run_sim <- function(niter, N_pop, model, gen_time) {
   
-  N_samp <- round(runif(1, min = 20, max = 100), 0)
-  N_loc <-  round(runif(1, min = 5, max = 30), 0)
-  # N_loc <- 20
+ # N_samp <- round(runif(1, min = 20, max = 500), 0)
+ #  N_loc <-  round(runif(1, min = 5, max = 30), 0)
+  
+  N_samp <- 100
+  N_loc <- 15
   
   if (niter%%5000 == 0) {
     if (!file.exists("num_iter/iterations.txt")){
@@ -91,7 +61,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   ## diploid effective population size - size 1/10 to 1 of census
   # minium proportion of effective population size to census:
   # 1 /
-  prop_prior_N <- 10
+  prop_prior_N <- 5
   
   N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
   # to keep the historical population size in the same prior range as the current population
@@ -99,8 +69,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   Ne_prop <-   N_pop / N0  
   
   ## mutation rate
- # mu <- runif(1, min = 5e-05, max = 5e-03)
-  mu <- 0.00005
+  mu <- runif(1, min = 0.00001, max = 0.0001)
+  # mu <- 0.0001
   ## theta
   theta <- 4 * N0 * mu
   
@@ -124,7 +94,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   ## bottleneck population size reduction from 1/1000 to 2 individuals
-  max_bot <- 1000 / N0 # 100 individuals
+  max_bot <- 100 / N0 # 100 individuals
   min_bot <- 2 / N0   # 2 individuals
   N_bot <- round(runif(1, min = min_bot, max = max_bot), 7) 
   
@@ -205,7 +175,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   p_single = runif(1, min = 0.7, max = 0.99) # probability of multi-step mutation is 0.2
-  sigma2_g = runif(1, min = 30, max = 70) # typical step-size ~7
+  sigma2_g = runif(1, min = 50, max = 70) # typical step-size ~7
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -266,7 +236,7 @@ sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim), rep("decl_IA", num_sim), 
                 rep("exp_IA", num_sim), rep("decl_rec", num_sim), rep("exp_rec", num_sim))
 
-write.table(sims, file = "sims_50000_6mod_lowmu_highsigma.txt", row.names = FALSE)
+write.table(sims, file = "sims_50000_6mod_changedparams.txt", row.names = FALSE)
 
 # sims <- rbind(sims_bot, sims_neut, sims_decl_IA, sims_exp_IA, sims_decl_rec, sims_exp_rec) #sims_exp
 

@@ -5,3 +5,7 @@
 *.txt
 nohup.out
 sims/
+*.pdf
+output/
+num_iter/
+plots/
