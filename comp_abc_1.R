@@ -9,31 +9,66 @@ library(reshape2)
 library("abctools")
 library(abc)
 library(ggplot2)
+library(readxl)
+library(dplyr)
+library(magrittr)
 
-path_to_sims <- "sims_simple_pop100k_sim100k.txt"
+seal_descriptives <- read_excel("../data/all_data_seals.xlsx")
+# add factor for abundance --> effective population size considered to be a maximum of one fifth of the abundance
+seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 50000, "10k", ifelse(Abundance < 500000, "100k", "1000k")))
 
-# load data 
+
+###### prepare data
+
+# load all_seals data for the 28 full datasets
+all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")[1:28]
+
+# calculate summary statistics
+all_sumstats_full <- lapply(all_seals_full, function(x) mssumstats(x[4:ncol(x)], type = "microsats", data_type = "empirical"))
+# as data.frame
+all_sumstats_full <- do.call(rbind, all_sumstats_full)
+# add factor for abundance level
+# all_sumstats_full$abund_level <- seal_descriptives$abund_level
+
+# which ss to use
+# names(sims)
+sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd",
+              "prop_low_afs_mean", "prop_low_afs_sd")
+
+all_sumstats_full <- all_sumstats_full[sumstats]
+
+# subset all under 50k (effective population size maximum of 10k)
+# pop_size <- "10k" # alternative 100k, 1000k
+
+# pop_size <- "100k"
+# run loop for all simulations
+for (pop_size in c("10k", "100k", "1000k")){
+  
+
+# load simulations
+path_to_sims <- paste0("sims_simple_pop", pop_size, "_sim500k.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 
-# which stats to use
-names(sims)
-sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd")
+# subset empirical summary statistics with the relevant populations
+all_sumstats <- all_sumstats_full[seal_descriptives$abund_level == pop_size, ]
+
+# subset all_seals with the relevant populations
+all_seals <- all_seals_full[seal_descriptives$abund_level == pop_size]
 
 # parameter columns
 params <- c(1:12)
 # character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.001
+tol <- 0.01
 # cross-validation replicates
 cv_rep <- 100
 # method
 method <- "mnlogistic"
 
-# some processing
 
+# some processing
 # extract names of all models
 all_models <- names(table(models))
 
@@ -42,104 +77,95 @@ sims_stats <- sims[sumstats]
 sims_param <- sims[params]
 
 
-##### first visual checks 
+##### (1) first visual checks 
 # check whether sumstats are different across models
-par(mfcol = c(4, 3), mar=c(5,5,1,1))
+pdf(paste0("plots/", pop_size, "_boxplots.pdf"))
+par(mfcol = c(3, 3), mar=c(4,4,1,1))
 for (i in sumstats){
   boxplot(sims[[i]] ~ models, main = i)
 }
+dev.off() #only 129kb in size
 
-### can abc at all distinguish between the 4 models ?
+
+### (2) can abc at all distinguish between the 4 models ?
 cv.modsel <- cv4postpr(models, sims_stats, nval=cv_rep, tol=tol, method=method)
 s <- summary(cv.modsel)
-png("plots/confusion_matrix.png", width=4, height=4, units="in", res=300)
+png(paste0("plots/", pop_size, "_confusion_matrix.png"), width=4, height=4, units="in", res=300)
 plot(cv.modsel, names.arg= all_models)
 dev.off() #only 129kb in size
 
-# load all seal data
-all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")
-
-# seal species
-# genotypes <- all_seals[[19]]
-# genotypes <- genotypes[4:ncol(genotypes)]
-
-all_sumstats <- lapply(all_seals, function(x) mssumstats(x[4:ncol(x)], type = "microsats", data_type = "empirical"))
-all_sumstats <- do.call(rbind, all_sumstats)
 
 
+### (3) model selection
 
-### model selection
-
-abc_mod_probs <- function(genotypes, models, sims_stats, tol, method, sumstats){
-  genotypes <- genotypes[4:ncol(genotypes)]
-  # calculate empirical summary statistics
-  obs_stats <- sealABC::mssumstats(genotypes, type = "microsats", data_type = "empirical")
-  obs_stats <- obs_stats[sumstats]
-  # model probabilities
-  mod_prob <- abc::postpr(obs_stats, models, sims_stats, tol = tol, method = method)
-  # sum_prob <- summary(mod_prob)
-}
+# abc_mod_probs <- function(obs_stats, models, sims_stats, tol, method, sumstats){
+#   # model probabilities
+#   mod_prob <- abc::postpr(obs_stats, models, sims_stats, tol = tol, method = method)
+#   # sum_prob <- summary(mod_prob)
+# }
 
 #check probabilites for all species
 cl <- makeCluster(getOption("cl.cores", detectCores()-5))
 clusterEvalQ(cl, c(library("sealABC"), library("abc")))
-all_probs <- parallel::parLapply(cl, all_seals[1:28], abc_mod_probs, models, sims_stats, tol, method, sumstats)
+all_probs <- parallel::parApply(cl, all_sumstats, 1, abc::postpr, index = models, sumstat = sims_stats, tol = tol, method = method)
 stopCluster(cl)
 
 all_probs_df <- do.call(rbind, lapply(all_probs, function(x) {
-  # sum_abc <- summary(x)
-  # if (is.null(sum_abc$rejection$Prop)){
-  #   out <- sum_abc$Prob
-  # } else {
-  #   out <- sum_abc$rejection$Prop
-  # }
   out <- round(x$pred, 3)
   out
 } ))
-write.table(all_probs_df, file = "output/model_selection.txt")
-
+write.table(all_probs_df, file = paste0("output/", pop_size, "_model_selection.txt"))
 
 
 
 #### Does the preferred model provide a good fit to the data?  
-calc_fit <- function(species_name, model, sumstats, all_sumstats, sims_stats) {
-  res_gfit_bot <- abc::gfit(target = all_sumstats[species_name, sumstats], sumstat = sims_stats[models == model, ], 
-                       nb.replicate = cv_rep, tol = tol)
-}
-
-# get all names
-all_names <- names(all_seals)[1:28]
+# calc_fit <- function(obs_stats, model, sumstats, all_sumstats, sims_stats) {
+#   res_gfit_bot <- abc::gfit(target = all_sumstats[species_name, sumstats], sumstat = sims_stats[models == model, ], 
+#                        nb.replicate = cv_rep, tol = tol)
+# }
 
 # calculate all fits
 cl <- makeCluster(getOption("cl.cores", detectCores()-5))
 clusterEvalQ(cl, c(library("sealABC"), library("abc")))
-all_fits_bot <- parLapply(cl, all_names, calc_fit, "bot", sumstats, all_sumstats, sims_stats)
-all_fits_neut <- parLapply(cl, all_names, calc_fit, "neut", sumstats, all_sumstats, sims_stats)
+all_fits_bot <- parApply(cl, all_sumstats, 1, abc::gfit, sumstat = sims_stats, nb.replicate = cv_rep, tol = tol, subset = models == "bot")
+all_fits_neut <- parApply(cl, all_sumstats,  1, abc::gfit, sumstat = sims_stats, nb.replicate = cv_rep, tol = tol, subset = models == "neut")
 stopCluster(cl)
 
-# plots
-pdf(file = "plots/goodnessoffit.pdf")
-par(mfrow = c(8, 4), mar=c(3,3,1,1))
-sapply(1:16, function(x) {
-  plot(all_fits_bot[[x]], main = all_names[x])
-  plot(all_fits_neut[[x]], main = all_names[x])
-})
-dev.off()
+all_names <- names(all_seals)
 
-pdf(file = "plots/goodnessoffit2.pdf")
-par(mfrow = c(6, 4), mar=c(3,3,1,1))
-sapply(17:28, function(x) {
-  plot(all_fits_bot[[x]], main = all_names[x])
-  plot(all_fits_neut[[x]], main = all_names[x])
+# plots
+pdf(file = paste0("plots/", pop_size, "_goodnessoffit.pdf"), width = 18, height = 14)
+par(mfrow = c(5, 4), mar=c(4,4,1,1))
+sapply(1:length(all_names), function(x) {
+  plot(all_fits_bot[[x]], main = paste0(all_names[x], "_bot"))
+  plot(all_fits_neut[[x]], main = paste0(all_names[x], "_neut"))
 })
 dev.off()
 
 
 # save the p_values and distances
-summary(res_gfit_bot)$pvalue
+# summary(res_gfit_bot)$pvalue
 
 all_p_bot <- unlist(lapply(all_fits_bot, function(x) summary(x)$pvalue))
 all_p_neut <-  unlist(lapply(all_fits_neut, function(x) summary(x)$pvalue))
 
 p_df <- data.frame(species = all_names, bot_p = all_p_bot, neut_p = all_p_neut)
-write.table(p_df, file = "output/p_vals_fit.txt", row.names = FALSE)
+write.table(p_df, file = paste0("output/", pop_size, "_p_vals_fit.txt"), row.names = FALSE)
+
+
+# PCAs
+# ?gfitpca
+# sims_minus_NA <- sims_stats[-which(rowSums(is.na(as.matrix(sims_stats))) > 0), ]
+# models_minus_NA <- models[-which(rowSums(is.na(as.matrix(sims_stats))) > 0)]
+
+# 
+# pdf(file = paste0("plots/", pop_size, "_pca.pdf"), width = 18, height = 14)
+# par(mfrow = c(5, 2), mar=c(3,3,1,1))
+# sapply(1:length(all_names), function(x) {
+#   gfitpca(all_sumstats[x, ], sims_minus_NA, index = models_minus_NA, cprob = 0.05, main = all_names[x])
+# })
+# dev.off()
+
+
+
+} # end loop

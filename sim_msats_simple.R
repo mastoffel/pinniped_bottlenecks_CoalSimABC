@@ -45,7 +45,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   ## diploid effective population size - size 1/10 to 1 of census
   # minium proportion of effective population size to census:
   # 1 /
-  prop_prior_N <- 20
+  prop_prior_N <- 50
   
   N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
   # to keep the historical population size in the same prior range as the current population
@@ -56,7 +56,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   # mu <- runif(1, min = 0.0001, max = 0.0005)
   # mu <- runif(1, min = 0.0005, max = 0.001)
   
-  mu <- runif(1, min = 0.0003, max = 0.0007)
+  mu <- runif(1, min = 0.0001, max = 0.0009)
   ## theta
   theta <- 4 * N0 * mu
   
@@ -80,9 +80,9 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   ## bottleneck population size reduction from 1/1000 to 2 individuals
-  max_n_bot <- round(rtruncnorm(1, a=2, b=1000, mean = 10, sd = 300), 0)
+  max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
   max_bot <- max_n_bot / N0 # 
-  min_bot <- 2 / N0   # 2 individuals
+  min_bot <- 1 / N0   # 2 individuals
   N_bot <- round(runif(1, min = min_bot, max = max_bot), 7) 
   
   # hist(rlnorm(1000, meanlog = 4, sdlog = 3), breaks = 1000)
@@ -104,8 +104,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   
-  p_single = runif(1, min = 0.7, max = 0.9) # probability of multi-step mutation is 0.2
-  sigma2_g = runif(1, min = 10, max = 100) # typical step-size ~7
+  p_single = runif(1, min = 0.7, max = 0.99) # probability of multi-step mutation is 0.2
+  sigma2_g = runif(1, min = 10, max = 60) # typical step-size ~7
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -113,6 +113,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
                                                       n_pop = 1,
                                                       p_single = p_single,
                                                       sigma2 = sigma2_g,
+                                                      mutation_model = "tpm",
                                                       ms_options = ms_options), stringsAsFactors = FALSE)
   
   sum_stats <- sealABC::mssumstats(simd_data)
@@ -129,13 +130,12 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 500000
-
+num_sim <- 100000
 
 
 
 ######### all simulations for 10000 ###############
-N_pop <- 10000
+N_pop <- 5000
 
 
 all_models = c("bottleneck", "neutral")
@@ -157,11 +157,11 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simple_pop10k_sim500k.txt", row.names = FALSE)
+write.table(sims, file = "sims_simple_pop5k_sim100k.txt", row.names = FALSE)
 
 
 ######### all simulations for 100000 ###############
-N_pop <- 100000
+N_pop <- 50000
 
 
 all_models = c("bottleneck", "neutral")
@@ -183,11 +183,11 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simple_pop100k_sim500k.txt", row.names = FALSE)
+write.table(sims, file = "sims_simple_pop50k_sim100k.txt", row.names = FALSE)
 
 
 ######### all simulations for 1000000 ###############
-N_pop <- 1000000
+N_pop <- 500000
 
 
 all_models = c("bottleneck", "neutral")
@@ -209,7 +209,7 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simple_pop1000k_sim500k.txt", row.names = FALSE)
+write.table(sims, file = "sims_simple_pop500k_sim100k.txt", row.names = FALSE)
 
 
 
