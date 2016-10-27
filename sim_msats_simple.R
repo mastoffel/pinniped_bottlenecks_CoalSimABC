@@ -45,7 +45,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   ## diploid effective population size - size 1/10 to 1 of census
   # minium proportion of effective population size to census:
   # 1 /
-  prop_prior_N <- 50
+  prop_prior_N <- 10
   
   N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
   # to keep the historical population size in the same prior range as the current population
@@ -104,8 +104,9 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   
-  p_single = runif(1, min = 0.7, max = 0.99) # probability of multi-step mutation is 0.2
-  sigma2_g = runif(1, min = 10, max = 60) # typical step-size ~7
+  p_single <-  runif(1, min = 0.7, max = 1) # probability of multi-step mutation is 0.2
+  # sigma2_g <- runif(1, min = 1, max = 30) # typical step-size ~7
+  sigma2_g <- runif(1, min = 1, max = 20)
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -133,10 +134,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 num_sim <- 100000
 
 
-
 ######### all simulations for 10000 ###############
 N_pop <- 5000
-
 
 all_models = c("bottleneck", "neutral")
 
@@ -167,17 +166,17 @@ N_pop <- 50000
 all_models = c("bottleneck", "neutral")
 
 run_sim_per_mod <- function(model){
-  
+
   cl <- makeCluster(getOption("cl.cores", detectCores()-3))
   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-  
+
   sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
   sims_df <- as.data.frame(data.table::rbindlist(sims))
-  
+
   stopCluster(cl)
-  
+
   sims_df
-  
+
 }
 
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))

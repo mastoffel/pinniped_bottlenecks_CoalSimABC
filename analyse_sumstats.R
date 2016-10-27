@@ -14,7 +14,7 @@ library(dplyr)
 library(magrittr)
 
 seal_descriptives <- read_excel("../data/seal_data_complete.xlsx")
-seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 50000, "10k", ifelse(Abundance < 500000, "100k", "1000k")))
+seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 20000, "5k", ifelse(Abundance < 300000, "50k", "500k")))
 
 sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd",
               "prop_low_afs_mean", "prop_low_afs_sd", "exp_het_mean", "exp_het_sd", "obs_het_mean", "obs_het_sd",
@@ -25,11 +25,11 @@ sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd
 # plot histograms for all summary statistics for all pop_size simulations relative to the empirical data
 
 
-for (pop_size in c("10k", "100k")){
+for (pop_size in c("5k", "50k", "500k")){
 # pop_size <- "100k"  
   
 # load simulations
-path_to_sims <- paste0("sims_simple_pop", pop_size, "_sim500k2.txt")
+path_to_sims <- paste0("sims_simple_pop", pop_size, "_sim100k.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 

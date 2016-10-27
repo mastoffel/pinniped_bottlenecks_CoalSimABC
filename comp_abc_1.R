@@ -15,7 +15,7 @@ library(magrittr)
 
 seal_descriptives <- read_excel("../data/all_data_seals.xlsx")
 # add factor for abundance --> effective population size considered to be a maximum of one fifth of the abundance
-seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 50000, "10k", ifelse(Abundance < 500000, "100k", "1000k")))
+seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 20000, "5k", ifelse(Abundance < 300000, "50k", "500k")))
 
 
 ###### prepare data
@@ -42,11 +42,11 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 # pop_size <- "100k"
 # run loop for all simulations
-for (pop_size in c("10k", "100k", "1000k")){
-  
+
+for (pop_size in c("5k", "50k", "500k")){ #
 
 # load simulations
-path_to_sims <- paste0("sims_simple_pop", pop_size, "_sim500k.txt")
+path_to_sims <- paste0("sims_simple_pop", pop_size, "_sim100k.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 
@@ -61,9 +61,9 @@ params <- c(1:12)
 # character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.01
+tol <- 0.005
 # cross-validation replicates
-cv_rep <- 100
+cv_rep <- 30
 # method
 method <- "mnlogistic"
 
@@ -137,7 +137,17 @@ all_names <- names(all_seals)
 pdf(file = paste0("plots/", pop_size, "_goodnessoffit.pdf"), width = 18, height = 14)
 par(mfrow = c(5, 4), mar=c(4,4,1,1))
 sapply(1:length(all_names), function(x) {
+  # check whether there are NAs, and if yes, exchange with mean
+  if (any(is.na(all_fits_bot[[x]]$dist.sim))) {
+    location <- which(is.na(all_fits_bot[[x]]$dist.sim))
+    all_fits_bot[[x]]$dist.sim[location] <- mean(all_fits_bot[[x]]$dist.sim, na.rm = TRUE)
+  }
   plot(all_fits_bot[[x]], main = paste0(all_names[x], "_bot"))
+  
+  if (any(is.na(all_fits_neut[[x]]$dist.sim))) {
+    location <- which(is.na(all_fits_neut[[x]]$dist.sim))
+    all_fits_neut[[x]]$dist.sim[location] <- mean(all_fits_neut[[x]]$dist.sim, na.rm = TRUE)
+  }
   plot(all_fits_neut[[x]], main = paste0(all_names[x], "_neut"))
 })
 dev.off()
