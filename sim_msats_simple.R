@@ -56,7 +56,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   # mu <- runif(1, min = 0.0001, max = 0.0005)
   # mu <- runif(1, min = 0.0005, max = 0.001)
   
-  mu <- runif(1, min = 0.0001, max = 0.0009)
+  # mu <- runif(1, min = 0.0001, max = 0.0009)
+  mu <- rtruncnorm(1, a=0, b=0.001, mean = 0.0001, sd = 0.0002)
   ## theta
   theta <- 4 * N0 * mu
   
@@ -106,7 +107,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   
   p_single <-  runif(1, min = 0.7, max = 1) # probability of multi-step mutation is 0.2
   # sigma2_g <- runif(1, min = 1, max = 30) # typical step-size ~7
-  sigma2_g <- runif(1, min = 1, max = 20)
+  sigma2_g <- runif(1, min = 1, max = 15)
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -131,7 +132,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 100000
+num_sim <- 500000
 
 
 ######### all simulations for 10000 ###############
@@ -156,7 +157,7 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simple_pop5k_sim100k.txt", row.names = FALSE)
+write.table(sims, file = "sims_simple_pop5k_sim500k2.txt", row.names = FALSE)
 
 
 ######### all simulations for 100000 ###############
@@ -182,7 +183,7 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simple_pop50k_sim100k.txt", row.names = FALSE)
+write.table(sims, file = "sims_simple_pop50k_sim500k2.txt", row.names = FALSE)
 
 
 ######### all simulations for 1000000 ###############
@@ -208,7 +209,7 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simple_pop500k_sim100k.txt", row.names = FALSE)
+write.table(sims, file = "sims_simple_pop500k_sim500k2.txt", row.names = FALSE)
 
 
 

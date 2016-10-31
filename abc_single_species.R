@@ -4,11 +4,10 @@ library(devtools)
 library(sealABC)
 library(data.table)
 library(reshape2)
-library("abctools")
 library(abc)
 library(ggplot2)
 
-path_to_sims <- "sims_simple_pop50k_sim100k.txt"
+path_to_sims <- "sims_simple_pop500k_sim500k.txt"
 
 # load data 
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
@@ -23,7 +22,7 @@ params <- c(1:12)
 # character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.001
+tol <- 0.0001
 # cross-validation replicates
 cv_rep <- 10
 # method
@@ -80,7 +79,7 @@ plot(res_gfit_bot)
 # get NA rows
 which_NA <- which(rowSums(is.na(as.matrix(sims_stats)))>0)
 # for final run
-gfitpca(target=obs_stats, sumstat=sims_stats[-which_NA, ], index=models[-which_NA], cprob=0.3)
+gfitpca(target=obs_stats, sumstat=sims_stats[-which_NA, ], index=models[-which_NA], cprob=0.1)
 
 
 
@@ -94,8 +93,8 @@ par_bot <- subset(sims_param, subset=models==mod)
 head(par_bot)
 
 # before inference, we see whether a parameter can be estimated at all
-cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"sigma2_g"]), stat_bot, nval=100,
-                     tols=c(.005,.01, 0.05), method="loclinear")
+cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"N_bot"]), stat_bot, nval=100,
+                     tols=c(.0005,.001, 0.01), method="loclinear")
 summary(cv_res_rej) #should be as low as possible
 plot(cv_res_rej, caption = "rejection")
 
@@ -109,8 +108,8 @@ par_bot <- par_bot %>%
   mutate(start_bot = 4 * N0 * start_bot) %>%
   mutate(end_bot = 4 * N0 * end_bot) 
 
-res <- abc(target = unlist(obs_stats), param = par_bot[, "sigma2_g"], 
-           sumstat = stat_bot, tol = 0.01, method="loclinear")
+res <- abc(target = unlist(obs_stats), param = par_bot[, "p_single"], 
+           sumstat = stat_bot, tol = 0.001, method="ridge")
 
 summary(res)
 hist(res, breaks = 100)
