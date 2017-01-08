@@ -26,8 +26,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   # N_samp <- round(runif(1, min = 20, max = 500), 0)
   #  N_loc <-  round(runif(1, min = 5, max = 30), 0)
   
-  N_samp <-  100
-  N_loc <- 15
+  N_samp <-  15
+  N_loc <- 5
   
   if (niter%%5000 == 0) {
     if (!file.exists("num_iter/iterations.txt")){
@@ -45,9 +45,12 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   ## diploid effective population size - size 1/10 to 1 of census
   # minium proportion of effective population size to census:
   # 1 /
-  prop_prior_N <- 10
-  
-  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
+  # if (N_pop == 5000)  prop_prior_N <- 10
+  # if (N_pop == 50000)  prop_prior_N <- 20
+  # if (N_pop == 500000)  prop_prior_N <- 50
+  prop_prior_N <- N_pop
+  # N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
+  N0 <- round(runif(1, min = 1, max = N_pop), 0)
   # to keep the historical population size in the same prior range as the current population
   # size, relative to N_pop
   Ne_prop <-   N_pop / N0  
@@ -56,8 +59,11 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   # mu <- runif(1, min = 0.0001, max = 0.0005)
   # mu <- runif(1, min = 0.0005, max = 0.001)
   
-  # mu <- runif(1, min = 0.0001, max = 0.0009)
-  mu <- rtruncnorm(1, a=0, b=0.001, mean = 0.0001, sd = 0.0002)
+  # mu <- runif(1, min = 0.0001, max = 0.0009) 
+  # tryout
+  mu <- runif(1, min = 0.00001, max = 0.001)
+  
+  # mu <- rtruncnorm(1, a=0, b=0.001, mean = 0.0001, sd = 0.0002)
   ## theta
   theta <- 4 * N0 * mu
   
@@ -80,10 +86,13 @@ run_sim <- function(niter, N_pop, model, gen_time) {
     if (end_bot < start_bot) sequence_correct <- TRUE
   }
   
-  ## bottleneck population size reduction from 1/1000 to 2 individuals
+  ## bottleneck population size 
   max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
+  # tryout
+  # max_n_bot <- 500
+  
   max_bot <- max_n_bot / N0 # 
-  min_bot <- 1 / N0   # 2 individuals
+  min_bot <- 1 / N0   # 1 pregnant individual
   N_bot <- round(runif(1, min = min_bot, max = max_bot), 7) 
   
   # hist(rlnorm(1000, meanlog = 4, sdlog = 3), breaks = 1000)
@@ -105,9 +114,14 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   
-  p_single <-  runif(1, min = 0.7, max = 1) # probability of multi-step mutation is 0.2
+  # p_single <- rtruncnorm(1, a=0.7, b=1, mean = 0.85, sd = 0.07)
+  # tryout
+  p_single <-  runif(1, min = 0.8, max = 1) # probability of multi-step mutation is 0.2
+  
+  
   # sigma2_g <- runif(1, min = 1, max = 30) # typical step-size ~7
-  sigma2_g <- runif(1, min = 1, max = 15)
+  sigma2_g <- runif(1, min = 1, max = 10)
+  
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -132,84 +146,112 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 500000
-
-
-######### all simulations for 10000 ###############
-N_pop <- 5000
-
-all_models = c("bottleneck", "neutral")
-
-run_sim_per_mod <- function(model){
-
-  cl <- makeCluster(getOption("cl.cores", detectCores()-3))
-  clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-
-  sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
-  sims_df <- as.data.frame(data.table::rbindlist(sims))
-
-  stopCluster(cl)
-
-  sims_df
-
-}
-
-sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
-
-write.table(sims, file = "sims_simple_pop5k_sim500k2.txt", row.names = FALSE)
-
-
-######### all simulations for 100000 ###############
-N_pop <- 50000
-
-
-all_models = c("bottleneck", "neutral")
-
-run_sim_per_mod <- function(model){
-
-  cl <- makeCluster(getOption("cl.cores", detectCores()-3))
-  clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-
-  sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
-  sims_df <- as.data.frame(data.table::rbindlist(sims))
-
-  stopCluster(cl)
-
-  sims_df
-
-}
-
-sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
-
-write.table(sims, file = "sims_simple_pop50k_sim500k2.txt", row.names = FALSE)
+num_sim <- 100000
 
 
 ######### all simulations for 1000000 ###############
+N_pop <- 5000
+
+
+all_models = c("bottleneck", "neutral")
+
+run_sim_per_mod <- function(model){
+  
+  cl <- makeCluster(getOption("cl.cores", detectCores()-3))
+  clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
+  
+  sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
+  sims_df <- as.data.frame(data.table::rbindlist(sims))
+  
+  stopCluster(cl)
+  
+  sims_df
+  
+}
+
+sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
+
+write.table(sims, file = "sims_pop5k_sim100k_smallsamp.txt", row.names = FALSE)
+
+
+######### all simulations for 10000 ###############
+N_pop <- 50000
+
+all_models = c("bottleneck", "neutral")
+
+run_sim_per_mod <- function(model){
+
+  cl <- makeCluster(getOption("cl.cores", detectCores()-3))
+  clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
+
+  sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
+  sims_df <- as.data.frame(data.table::rbindlist(sims))
+
+  stopCluster(cl)
+
+  sims_df
+}
+
+sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
+
+write.table(sims, file = "sims_pop50k_sim100k_smallsamp.txt", row.names = FALSE)
+
+
+######### all simulations for 100000 ###############
 N_pop <- 500000
 
 
 all_models = c("bottleneck", "neutral")
 
 run_sim_per_mod <- function(model){
-  
+
   cl <- makeCluster(getOption("cl.cores", detectCores()-3))
   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-  
+
   sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
   sims_df <- as.data.frame(data.table::rbindlist(sims))
-  
+
   stopCluster(cl)
-  
+
   sims_df
-  
+
 }
 
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simple_pop500k_sim500k2.txt", row.names = FALSE)
+write.table(sims, file = "sims_pop500k_sim100k_smallsamp.txt", row.names = FALSE)
 
+
+
+
+
+# ######### all simulations for 1000000 ###############
+# N_pop <- 500000
+# 
+# 
+# all_models = c("bottleneck", "neutral")
+# 
+# run_sim_per_mod <- function(model){
+#   
+#   cl <- makeCluster(getOption("cl.cores", detectCores()-3))
+#   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
+#   
+#   sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
+#   sims_df <- as.data.frame(data.table::rbindlist(sims))
+#   
+#   stopCluster(cl)
+#   
+#   sims_df
+#   
+# }
+# 
+# sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
+# sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
+# 
+# write.table(sims, file = "sims_pop500k_sim200k.txt", row.names = FALSE)
+# 
 
 

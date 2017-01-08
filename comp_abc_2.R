@@ -1,12 +1,10 @@
 # comparative analysis of abc output 1
 
-# analyse simulated microsatellites under three different models000
 library(devtools)
 # install_github("mastoffel/sealABC")
 library(sealABC)
 library(data.table)
 library(reshape2)
-library("abctools")
 library(abc)
 library(ggplot2)
 library(readxl)
@@ -15,10 +13,9 @@ library(magrittr)
 
 seal_descriptives <- read_excel("../data/all_data_seals.xlsx")
 # add factor for abundance --> effective population size considered to be a maximum of one fifth of the abundance
-seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 50000, "10k", ifelse(Abundance < 500000, "100k", "1000k")))
+seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 20000, "5k", ifelse(Abundance < 300000, "50k", "500k")))
 
-
-###### prepare data
+###### prepare data ########
 
 # load all_seals data for the 28 full datasets
 all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")[1:28]
@@ -27,8 +24,6 @@ all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_an
 all_sumstats_full <- lapply(all_seals_full, function(x) mssumstats(x[4:ncol(x)], type = "microsats", data_type = "empirical"))
 # as data.frame
 all_sumstats_full <- do.call(rbind, all_sumstats_full)
-# add factor for abundance level
-# all_sumstats_full$abund_level <- seal_descriptives$abund_level
 
 # which ss to use
 # names(sims)
@@ -37,14 +32,11 @@ sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
-
-pop_size <- "100k"
 # run loop for all simulations
-#for (pop_size in c("10k", "100k", "1000k")){
-  
+for (pop_size in c("5k", "50k", "500k")){
   
   # load simulations
-  path_to_sims <- paste0("sims_simple_pop", pop_size, "_sim500k.txt")
+  path_to_sims <- paste0("sims_pop", pop_size, "_sim200k2.txt")
   sims <-fread(path_to_sims, stringsAsFactors = FALSE)
   sims <- as.data.frame(sims)
   
@@ -58,13 +50,6 @@ pop_size <- "100k"
   params <- c(1:12)
   # character vector with models
   models <- sims$model
-  # tolerance rate
-  tol <- 0.01
-  # cross-validation replicates
-  cv_rep <- 5
-  # method
-  method <- "mnlogistic"
-  
   
   # some processing
   # extract names of all models
@@ -74,48 +59,73 @@ pop_size <- "100k"
   sims_stats <- sims[sumstats] 
   sims_param <- sims[params]
   
+  # run the actual abc analysis
   
-  # parameter inference under the specified model
+  #for (mod in c("bot")){
+  
+  # just use bottleneck model
   mod <- "bot"
   
-  stat_bot <- subset(sims_stats, subset=models==mod)
-  # head(stat_bot)
-  
-  par_bot <- subset(sims_param, subset=models==mod)
-  # head(par_bot)
-  
-  # before inference, we see whether a parameter can be estimated at all
-  cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"N_bot"]), stat_bot, nval=100,
-                       tols=c(.005,.01, 0.05), method="loclinear")
-  summary(cv_res_rej) #should be as low as possible
-  plot(cv_res_rej, caption = "rejection")
-  
-  library(dplyr)
-  par_bot <- par_bot %>% 
-    mutate(N_bot = N0 * N_bot) %>%
-    mutate(N_hist_bot = N0 * N_hist_bot) %>%
-    mutate(start_bot = 4 * N0 * start_bot) %>%
-    mutate(end_bot = 4 * N0 * end_bot) 
-  
-  # parameter inference
-  # some transformations to par_bot
-  # hawaiian monk seal
-  genotypes <- all_seals[[1]]
-  genotypes <- genotypes[4:ncol(genotypes)]
-  
-  # calculate summary statistics
-  obs_stats <- mssumstats(genotypes, type = "microsats", data_type = "empirical")
-  obs_stats <- obs_stats[sumstats]
+    stat_mod <- subset(sims_stats, subset=models==mod)
+    par_mod <- subset(sims_param, subset=models==mod)
+    
+    ## accuracy of parameter estimate
+    # if (mod == "bot"){
+    
+    # # before inference, we see whether a parameter can be estimated at all
+    # cv_nbot <- function(method, nval = 50, tols = c(.001,.01, 0.005)){
+    #   cv_res_rej <- cv4abc(data.frame(Na=par_mod[,"N_bot"]), stat_mod, nval=nval,
+    #                        tols=tols, method=method)
+    # }
+    
+   # all_cv_nbot <- lapply(c("loclinear", "ridge"), cv_nbot, nval = 30)
+   # assign(paste0("cv_nbot_", pop_size), all_cv_nbot)
+   # 
 
-  
-  res <- abc(target = unlist(obs_stats), param = par_bot[, "N_hist_bot"], 
-             sumstat = stat_bot, tol = 0.01, method="rejection")
-  
-  summary(res)
-  hist(res, breaks = 100)
-  
-  par(cex=.8)
-  plot(res, param=par_bot$N_bot)
+    par_mod <- par_mod %>% 
+      mutate(N_bot = N0 * N_bot) %>%
+      mutate(N_hist_bot = N0 * N_hist_bot) %>%
+      mutate(start_bot = 4 * N0 * start_bot) %>%
+      mutate(end_bot = 4 * N0 * end_bot) 
+    
+    # abc method
+    all_methods <- c("ridge", "loclinear", "neuralnet") # 
+    # species names
+    all_species <- row.names(all_sumstats)
+    # parameters to estimate posteriors
+    all_parameters <- c("N_bot", "N0", "mu", "start_bot", "end_bot", "N_hist_bot", "sigma2_g", "p_single") # "N0", "mu", "start_bot", "end_bot", "N_hist_bot", "sigma2_g"
+    
+    # get all combinations of method, species and parameters
+    all_args <- expand.grid(all_methods,all_species, all_parameters)
+    all_args <- data.frame(apply(all_args, 2, as.character), stringsAsFactors = FALSE)
+    names(all_args) <- c("methods", "species", "pars")
+    
+    ## run abc
+    abc_est <- apply(all_args, 1, function(x) {
+      abc(target = all_sumstats[x["species"], ], param = par_mod[, x["pars"]], 
+          sumstat = stat_mod, tol = 0.003, method=x["methods"])
+    })
+    
+    # create a list of 2. The first element ist the parameter data.frame for the abc. The second element are the corresponding abc objects.
+    # assign(paste0("abc_", pop_size), list(all_args, abc_est))
+    # saved_file_name <- paste(paste0("abc_", pop_size),"RData",sep=".")
+    # save(list(all_args, abc_est), saved_file_name)
+    
+    if (pop_size == "5k"){
+      abc_5k <- list(all_args, abc_est)
+      save(abc_5k, file = "abc_estimates/abc_5k.RData")
+    }
+    if (pop_size == "50k"){
+      abc_50k <- list(all_args, abc_est)
+      save(abc_50k, file = "abc_estimates/abc_50k.RData")
+    }
+    if (pop_size == "500k"){
+      abc_500k <- list(all_args, abc_est)
+      save(abc_500k, file = "abc_estimates/abc_500k.RData")
+    }
+}  
+
+
   
   
   

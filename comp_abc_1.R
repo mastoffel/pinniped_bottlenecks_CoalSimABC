@@ -6,34 +6,52 @@ library(devtools)
 library(sealABC)
 library(data.table)
 library(reshape2)
-library("abctools")
 library(abc)
 library(ggplot2)
 library(readxl)
 library(dplyr)
 library(magrittr)
+library(parallel)
 
+# load all seal data
 seal_descriptives <- read_excel("../data/all_data_seals.xlsx")
 # add factor for abundance --> effective population size considered to be a maximum of one fifth of the abundance
 seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 20000, "5k", ifelse(Abundance < 300000, "50k", "500k")))
 
 
-###### prepare data
+###### prepare data #######
 
 # load all_seals data for the 28 full datasets
 all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")[1:28]
 
+# minimum number of loci?
+min(unlist(lapply(all_seals_full, function(x) (ncol(x)-3)/2)))
+min(unlist(lapply(all_seals_full, function(x) nrow(x))))
+
 # calculate summary statistics
 all_sumstats_full <- lapply(all_seals_full, function(x) mssumstats(x[4:ncol(x)], type = "microsats", data_type = "empirical"))
+
 # as data.frame
 all_sumstats_full <- do.call(rbind, all_sumstats_full)
+
+# # calculate summary statistics with rarefaction
+# all_sumstats_full_rare <- lapply(all_seals_full, function(x) mssumstats(x[4:ncol(x)], type = "microsats", data_type = "empirical",
+#                                                                         rarefaction = TRUE, nsamp = 15, nloc = 5, nboot = 1000)
+#                                 )
+# 
+# # as data.frame
+# all_sumstats_full_rare <- do.call(rbind, all_sumstats_full_rare)
+
 # add factor for abundance level
 # all_sumstats_full$abund_level <- seal_descriptives$abund_level
 
 # which ss to use
 # names(sims)
-sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd")
+sumstats <- c("num_alleles_mean", "prop_low_afs_mean", "mratio_mean",
+              "num_alleles_sd", "prop_low_afs_sd") 
+          #,  "mean_allele_size_var",    "mratio_mean",
+          # "prop_low_afs_mean")  "mean_allele_size_var"
+           
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
@@ -43,10 +61,11 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 # pop_size <- "100k"
 # run loop for all simulations
 
-for (pop_size in c("5k", "50k", "500k")){ #
+for (pop_size in c( "5k", "50k", "500k")){ #
 
 # load simulations
-path_to_sims <- paste0("sims_simple_pop", pop_size, "_sim100k.txt")
+path_to_sims <- paste0("sims_pop", pop_size, "_sim200k.txt")
+
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 
@@ -61,11 +80,11 @@ params <- c(1:12)
 # character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.005
+tol <- 0.001
 # cross-validation replicates
-cv_rep <- 30
+cv_rep <- 2
 # method
-method <- "mnlogistic"
+method <- "neuralnet"
 
 
 # some processing
@@ -98,14 +117,8 @@ dev.off() #only 129kb in size
 
 ### (3) model selection
 
-# abc_mod_probs <- function(obs_stats, models, sims_stats, tol, method, sumstats){
-#   # model probabilities
-#   mod_prob <- abc::postpr(obs_stats, models, sims_stats, tol = tol, method = method)
-#   # sum_prob <- summary(mod_prob)
-# }
-
 #check probabilites for all species
-cl <- makeCluster(getOption("cl.cores", detectCores()-5))
+cl <- parallel::makeCluster(getOption("cl.cores", detectCores()-25))
 clusterEvalQ(cl, c(library("sealABC"), library("abc")))
 all_probs <- parallel::parApply(cl, all_sumstats, 1, abc::postpr, index = models, sumstat = sims_stats, tol = tol, method = method)
 stopCluster(cl)
@@ -119,13 +132,9 @@ write.table(all_probs_df, file = paste0("output/", pop_size, "_model_selection.t
 
 
 #### Does the preferred model provide a good fit to the data?  
-# calc_fit <- function(obs_stats, model, sumstats, all_sumstats, sims_stats) {
-#   res_gfit_bot <- abc::gfit(target = all_sumstats[species_name, sumstats], sumstat = sims_stats[models == model, ], 
-#                        nb.replicate = cv_rep, tol = tol)
-# }
 
 # calculate all fits
-cl <- makeCluster(getOption("cl.cores", detectCores()-5))
+cl <- makeCluster(getOption("cl.cores", detectCores()-25))
 clusterEvalQ(cl, c(library("sealABC"), library("abc")))
 all_fits_bot <- parApply(cl, all_sumstats, 1, abc::gfit, sumstat = sims_stats, nb.replicate = cv_rep, tol = tol, subset = models == "bot")
 all_fits_neut <- parApply(cl, all_sumstats,  1, abc::gfit, sumstat = sims_stats, nb.replicate = cv_rep, tol = tol, subset = models == "neut")

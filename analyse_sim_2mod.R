@@ -4,11 +4,10 @@ library(devtools)
 library(sealABC)
 library(data.table)
 library(reshape2)
-library("abctools")
 library(abc)
 library(ggplot2)
 
-sims <- fread("sims_simple_pop100k_sim10k.txt", stringsAsFactors = FALSE)
+sims <- fread("sims_simple_pop50k_sim100k.txt", stringsAsFactors = FALSE)
 # sims <- as.data.frame(sims)
 
 sims <- as.data.frame(sims)
