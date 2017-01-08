@@ -1,7 +1,7 @@
 # simulating microsatellite data and calculating summary statistics
 
 library(devtools)
-install_github("mastoffel/sealABC", force = TRUE)
+# install_github("mastoffel/sealABC", force = TRUE)
 library(sealABC)
 # devtools::install_github("andersgs/microsimr", build_vignettes = TRUE, force = TRUE)
 library(microsimr)
@@ -26,8 +26,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   # N_samp <- round(runif(1, min = 20, max = 500), 0)
   #  N_loc <-  round(runif(1, min = 5, max = 30), 0)
   
-  N_samp <-  15
-  N_loc <- 5
+  N_samp <-  50
+  N_loc <- 10
   
   if (niter%%5000 == 0) {
     if (!file.exists("num_iter/iterations.txt")){
@@ -42,13 +42,14 @@ run_sim <- function(niter, N_pop, model, gen_time) {
     }
   }
   
-  ## diploid effective population size - size 1/10 to 1 of census
-  # minium proportion of effective population size to census:
-  # 1 /
+  ## diploid effective population size prior: from 1 to N_pop
+  
   # if (N_pop == 5000)  prop_prior_N <- 10
   # if (N_pop == 50000)  prop_prior_N <- 20
   # if (N_pop == 500000)  prop_prior_N <- 50
+  
   prop_prior_N <- N_pop
+  
   # N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
   N0 <- round(runif(1, min = 1, max = N_pop), 0)
   # to keep the historical population size in the same prior range as the current population
@@ -87,10 +88,14 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   ## bottleneck population size 
-  max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
-  # tryout
-  # max_n_bot <- 500
+  max_n_bot <- N0
   
+  # make sure that bottleneck pop size is smaller than N0
+  while (! (max_n_bot < N0)){
+    max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
+  }
+  
+  # bottleneck pop size relative to N0
   max_bot <- max_n_bot / N0 # 
   min_bot <- 1 / N0   # 1 pregnant individual
   N_bot <- round(runif(1, min = min_bot, max = max_bot), 7) 
@@ -101,10 +106,11 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   # N_bot <- rnorm(1, mean = 0.01, sd = 0.05)
   
   ## historical population size ranges in the same absolute priors (range) as the current population size
+  # At the moment prop_prior_N is N_pop, which means that the historical population size
+  # ranges from 1 to N_pop, i.e. has the same range than the current pop size N0
   N_hist_bot <- round(runif(1, min = (1 / prop_prior_N) * Ne_prop, max = Ne_prop), 7)
   
   # 
-  
   if (model == "bottleneck") {
     ms_options <- paste("-eN", end_bot, N_bot, "-eN", start_bot, N_hist_bot, sep = " ")
   }
@@ -112,7 +118,6 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   if (model == "neutral") {
     ms_options <- paste("-eN", start_bot, N_hist_bot, sep = " ")
   }
-  
   
   # p_single <- rtruncnorm(1, a=0.7, b=1, mean = 0.85, sd = 0.07)
   # tryout
@@ -146,8 +151,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 100000
-
+num_sim <- 200000
+file_ext <- "sim200k_broadpop.txt"
 
 ######### all simulations for 1000000 ###############
 N_pop <- 5000
@@ -172,7 +177,8 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_pop5k_sim100k_smallsamp.txt", row.names = FALSE)
+
+write.table(sims, file = paste0("sims_pop5k_", file_ext), row.names = FALSE)
 
 
 ######### all simulations for 10000 ###############
@@ -196,7 +202,7 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_pop50k_sim100k_smallsamp.txt", row.names = FALSE)
+write.table(sims, file = paste0("sims_pop50k_", file_ext), row.names = FALSE)
 
 
 ######### all simulations for 100000 ###############
@@ -222,7 +228,7 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_pop500k_sim100k_smallsamp.txt", row.names = FALSE)
+write.table(sims, file = paste0("sims_pop500k_", file_ext), row.names = FALSE)
 
 
 
