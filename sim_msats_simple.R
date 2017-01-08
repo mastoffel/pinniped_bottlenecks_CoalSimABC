@@ -1,7 +1,7 @@
 # simulating microsatellite data and calculating summary statistics
 
 library(devtools)
-# install_github("mastoffel/sealABC", force = TRUE)
+install_github("mastoffel/sealABC", force = TRUE)
 library(sealABC)
 # devtools::install_github("andersgs/microsimr", build_vignettes = TRUE, force = TRUE)
 library(microsimr)
