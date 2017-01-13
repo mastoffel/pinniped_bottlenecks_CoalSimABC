@@ -47,10 +47,12 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 
 # which ss to use
 # names(sims)
-sumstats <- c("num_alleles_mean", "prop_low_afs_mean", "mratio_mean",
-              "num_alleles_sd", "prop_low_afs_sd") 
-          #,  "mean_allele_size_var",    "mratio_mean",
-          # "prop_low_afs_mean")  "mean_allele_size_var"
+sumstats <- c("prop_low_afs_mean", "mratio_mean",   "num_alleles_sd", "prop_low_afs_sd",
+              "mean_allele_range", "sd_allele_range", "mratio_sd")
+
+#             
+#             )
+           #
            
 
 all_sumstats_full <- all_sumstats_full[sumstats]
@@ -64,7 +66,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 for (pop_size in c( "5k", "50k", "500k")){ #
 
 # load simulations
-path_to_sims <- paste0("sims_pop", pop_size, "_sim200k.txt")
+path_to_sims <- paste0("sims_pop", pop_size, "_sim100k_broad.txt")
 
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
@@ -85,7 +87,6 @@ tol <- 0.001
 cv_rep <- 2
 # method
 method <- "neuralnet"
-
 
 # some processing
 # extract names of all models

@@ -44,14 +44,15 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   
   ## diploid effective population size prior: from 1 to N_pop
   
-  # if (N_pop == 5000)  prop_prior_N <- 10
-  # if (N_pop == 50000)  prop_prior_N <- 20
-  # if (N_pop == 500000)  prop_prior_N <- 50
+  if (N_pop == 5000)  prop_prior_N <- 10
+  if (N_pop == 50000)  prop_prior_N <- 50
+  if (N_pop == 500000)  prop_prior_N <- 100
   
-  prop_prior_N <- N_pop
+  # prop_prior_N <- N_pop
   
-  # N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
-  N0 <- round(runif(1, min = 1, max = N_pop), 0)
+  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
+  # N0 <- round(runif(1, min = 1, max = N_pop), 0)
+  
   # to keep the historical population size in the same prior range as the current population
   # size, relative to N_pop
   Ne_prop <-   N_pop / N0  
@@ -88,17 +89,24 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   ## bottleneck population size 
-  max_n_bot <- N0
+  # max_n_bot <- N0
   
   # make sure that bottleneck pop size is smaller than N0
-  while (! (max_n_bot < N0)){
-    max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
-  }
+  # while (! (max_n_bot < N0)){
+  #   max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
+  # }
   
-  # bottleneck pop size relative to N0
-  max_bot <- max_n_bot / N0 # 
-  min_bot <- 1 / N0   # 1 pregnant individual
-  N_bot <- round(runif(1, min = min_bot, max = max_bot), 7) 
+  # ## old way, potentially not very clever
+  # max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
+  # 
+  # # bottleneck pop size relative to N0
+  # max_bot <- max_n_bot / N0 # 
+  # min_bot <- 1 / N0   # 1 pregnant individual
+  # N_bot <- round(runif(1, min = min_bot, max = max_bot), 7) 
+  
+  
+  N_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
+  N_bot <- N_bot / N0
   
   # hist(rlnorm(1000, meanlog = 4, sdlog = 3), breaks = 1000)
   # rtruncnorm(10000, a=0, b=1000, mean = 50, sd = 300)
@@ -116,7 +124,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   }
   
   if (model == "neutral") {
-    ms_options <- paste("-eN", start_bot, N_hist_bot, sep = " ")
+    # ms_options <- paste("-eN", start_bot, N_hist_bot, sep = " ")
+    ms_options <- paste("-eN", sep = " ")
   }
   
   # p_single <- rtruncnorm(1, a=0.7, b=1, mean = 0.85, sd = 0.07)
@@ -151,8 +160,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 200000
-file_ext <- "sim200k_broadpop.txt"
+num_sim <- 100000
+file_ext <- "sim100k_broad.txt"
 
 ######### all simulations for 1000000 ###############
 N_pop <- 5000
