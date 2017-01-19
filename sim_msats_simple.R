@@ -47,10 +47,11 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   if (N_pop == 5000)  prop_prior_N <- 10
   if (N_pop == 50000)  prop_prior_N <- 50
   if (N_pop == 500000)  prop_prior_N <- 100
-  
   # prop_prior_N <- N_pop
   
   N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
+  
+  if (N_pop == 500000)  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop/5), 0)
   # N0 <- round(runif(1, min = 1, max = N_pop), 0)
   
   # to keep the historical population size in the same prior range as the current population
@@ -125,7 +126,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   
   if (model == "neutral") {
     # ms_options <- paste("-eN", start_bot, N_hist_bot, sep = " ")
-    ms_options <- paste("-eN", sep = " ")
+    ms_options <- NULL
   }
   
   # p_single <- rtruncnorm(1, a=0.7, b=1, mean = 0.85, sd = 0.07)
@@ -160,8 +161,8 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 100000
-file_ext <- "sim100k_broad.txt"
+num_sim <- 300000
+file_ext <- "sim300k_restr.txt"
 
 ######### all simulations for 1000000 ###############
 N_pop <- 5000

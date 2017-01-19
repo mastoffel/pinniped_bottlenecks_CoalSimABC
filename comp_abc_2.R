@@ -27,8 +27,9 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 
 # which ss to use
 # names(sims)
-sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd")
+sumstats <- c("num_alleles_mean", "prop_low_afs_mean",   
+              "mean_allele_range",  "mean_allele_size_var",
+              "exp_het_mean")
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
@@ -36,7 +37,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 for (pop_size in c("5k", "50k", "500k")){
   
   # load simulations
-  path_to_sims <- paste0("sims_pop", pop_size, "_sim200k2.txt")
+  path_to_sims <- paste0("sims_pop", pop_size, "_sim300k_restr.txt")
   sims <-fread(path_to_sims, stringsAsFactors = FALSE)
   sims <- as.data.frame(sims)
   
@@ -90,6 +91,7 @@ for (pop_size in c("5k", "50k", "500k")){
     
     # abc method
     all_methods <- c("ridge", "loclinear", "neuralnet") # 
+    all_methods <- c("neuralnet")
     # species names
     all_species <- row.names(all_sumstats)
     # parameters to estimate posteriors
@@ -103,7 +105,7 @@ for (pop_size in c("5k", "50k", "500k")){
     ## run abc
     abc_est <- apply(all_args, 1, function(x) {
       abc(target = all_sumstats[x["species"], ], param = par_mod[, x["pars"]], 
-          sumstat = stat_mod, tol = 0.003, method=x["methods"])
+          sumstat = stat_mod, tol = 0.001, method=x["methods"])
     })
     
     # create a list of 2. The first element ist the parameter data.frame for the abc. The second element are the corresponding abc objects.

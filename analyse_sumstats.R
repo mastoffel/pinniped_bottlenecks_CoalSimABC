@@ -18,7 +18,7 @@ seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 20000, "5k", ifel
 
 sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd",
               "prop_low_afs_mean", "prop_low_afs_sd", "exp_het_mean", "exp_het_sd", "obs_het_mean", "obs_het_sd",
-              "mean_allele_size_var", "sd_allele_size_var", "het_excess")
+              "mean_allele_size_var", "sd_allele_size_var", "het_excess", "mean_allele_range" )
 
 
 
@@ -28,7 +28,7 @@ sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd
 for (pop_size in c("500k", "5k", "50k" )){ # 
 
 # load simulations
-path_to_sims <- paste0("sims_pop", pop_size, "_sim200k.txt")
+path_to_sims <- paste0("sims_pop", pop_size, "_sim300k_restr.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 

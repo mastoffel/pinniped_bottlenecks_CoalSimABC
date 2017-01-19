@@ -7,7 +7,7 @@ library(reshape2)
 library(abc)
 library(ggplot2)
 
-path_to_sims <- "sims_pop500k_500k.txt"
+path_to_sims <- "sims_pop500k_sim100k_broad.txt"
 
 # load data 
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
@@ -15,8 +15,9 @@ sims <- as.data.frame(sims)
 
 # which stats to use
 names(sims)
-sumstats <- c("num_alleles_mean", "num_alleles_sd", "mratio_mean", "mratio_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd")
+sumstats <- c("num_alleles_mean", "prop_low_afs_mean",   
+              "num_alleles_sd", "prop_low_afs_sd", 
+              "mean_allele_size_var")
 # parameter columns
 params <- c(1:12)
 # character vector with models
@@ -64,7 +65,7 @@ all_sumstats <- mssumstats(genotypes, type = "microsats", data_type = "empirical
 obs_stats <- all_sumstats[sumstats]
 
 ### model selection
-mod_prob <- abc::postpr(obs_stats, models, sims_stats, tol = 0.001, method = "mnlogistic")
+mod_prob <- abc::postpr(obs_stats, models, sims_stats, tol = 0.01, method = "mnlogistic")
 summary(mod_prob)
 
 
@@ -93,8 +94,8 @@ par_bot <- subset(sims_param, subset=models==mod)
 head(par_bot)
 
 # before inference, we see whether a parameter can be estimated at all
-cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"N_bot"]), stat_bot, nval=40,
-                     tols=c(.001), method="neuralnet")
+cv_res_rej <- cv4abc(data.frame(Na=par_bot[,"N_bot"]), stat_bot, nval=100,
+                     tols=c(.01), method="loclinear")
 summary(cv_res_rej) #should be as low as possible
 plot(cv_res_rej, caption = "rejection")
 
@@ -108,8 +109,8 @@ par_bot <- par_bot %>%
   mutate(start_bot = 4 * N0 * start_bot) %>%
   mutate(end_bot = 4 * N0 * end_bot) 
 
-res <- abc(target = unlist(obs_stats), param = par_bot[, "p_single"], 
-           sumstat = stat_bot, tol = 0.005, method="ridge")
+res <- abc(target = unlist(obs_stats), param = par_bot[, "N0"], 
+           sumstat = stat_bot, tol = 0.01, method="ridge")
 options(scipen=999)
 
 summary(res)
