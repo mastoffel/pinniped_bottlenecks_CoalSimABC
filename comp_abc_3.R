@@ -1,4 +1,4 @@
-# plot the calculated posteriors
+#### plot the calculated posteriors
 load("abc_estimates/abc_5k.RData")
 load("abc_estimates/abc_50k.RData")
 load("abc_estimates/abc_500k.RData")
