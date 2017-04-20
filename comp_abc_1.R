@@ -53,6 +53,12 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 
 
 #### select summary statistics ######
+
+# optimal stats so far:
+# sumstats <- c("num_alleles_mean", "prop_low_afs_mean",   
+#               "mean_allele_range",  "mean_allele_size_var",
+#               "exp_het_mean")
+
 # names(sims)
 sumstats <- c("num_alleles_mean", "prop_low_afs_mean",   
               "mean_allele_range",  "mean_allele_size_var",
@@ -67,7 +73,7 @@ for (pop_size in c( "5k", "50k", "500k")){ #
 
 
 ### load simulations, stored in main folder atm ###
-path_to_sims <- paste0("sims_pop", pop_size, "_sim300k_restr.txt")
+path_to_sims <- paste0("sims_pop", pop_size, "_sim100k_botunifprior.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 

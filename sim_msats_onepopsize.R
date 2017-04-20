@@ -21,7 +21,7 @@ all_seals <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop
 gen_time <- 13.07 # mean generation time across species
 
 
-run_sim <- function(niter, N_pop, model, gen_time) {
+run_sim <- function(niter, model, gen_time) {
   
   # N_samp <- round(runif(1, min = 20, max = 500), 0)
   #  N_loc <-  round(runif(1, min = 5, max = 30), 0)
@@ -42,31 +42,14 @@ run_sim <- function(niter, N_pop, model, gen_time) {
     }
   }
   
-  ## diploid effective population size prior: from 1 to N_pop
-  
-  if (N_pop == 5000)  prop_prior_N <- 10
-  if (N_pop == 50000)  prop_prior_N <- 50
-  if (N_pop == 500000)  prop_prior_N <- 100
-  # prop_prior_N <- N_pop
-  
-  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop), 0)
-  
-  if (N_pop == 500000)  N0 <- round(runif(1, min = N_pop / prop_prior_N, max = N_pop/5), 0)
-  # N0 <- round(runif(1, min = 1, max = N_pop), 0)
-  
-  # to keep the historical population size in the same prior range as the current population
-  # size, relative to N_pop
-  Ne_prop <-   N_pop / N0  
+  ## diploid effective population size prior: from 1 to 500000
+  # N0 <- round(runif(1, min = 1, max = 500000))
+  N0 <- rtruncnorm(1, a=1, b=500000, mean = 10000, sd = 150000)
   
   ## mutation rate
-  # mu <- runif(1, min = 0.0001, max = 0.0005)
-  # mu <- runif(1, min = 0.0005, max = 0.001)
-  
-  # mu <- runif(1, min = 0.0001, max = 0.0009) 
-  # tryout
   mu <- runif(1, min = 0.00001, max = 0.09)
-  
   # mu <- rtruncnorm(1, a=0, b=0.001, mean = 0.0001, sd = 0.0002)
+  
   ## theta
   theta <- 4 * N0 * mu
   
@@ -89,46 +72,27 @@ run_sim <- function(niter, N_pop, model, gen_time) {
     if (end_bot < start_bot) sequence_correct <- TRUE
   }
   
-  ## bottleneck population size 
-  # max_n_bot <- N0
-  
-  # make sure that bottleneck pop size is smaller than N0
-  # while (! (max_n_bot < N0)){
-  #   max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
-  # }
-  
-  # ## old way, potentially not very clever
-  # max_n_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
-  # 
-  # # bottleneck pop size relative to N0
-  # max_bot <- max_n_bot / N0 # 
-  # min_bot <- 1 / N0   # 1 pregnant individual
-  # N_bot <- round(runif(1, min = min_bot, max = max_bot), 7) 
-  
-  
-  ### tryout uniform prior for bottleneck
+  ### uniform prior for bottleneck
   # N_bot <- round(rtruncnorm(1, a=1, b=1000, mean = 10, sd = 200), 0)
-  N_bot <- round(runif(1, min = 1, max = 500),0)
+  N_bot <- N0
+  while (!(N_bot < N0)){
+    N_bot <- round(runif(1, min = 1, max = 500),0)
+  }
   N_bot <- N_bot / N0
-  
-  # hist(rlnorm(1000, meanlog = 4, sdlog = 3), breaks = 1000)
-  # rtruncnorm(10000, a=0, b=1000, mean = 50, sd = 300)
-  
-  # N_bot <- rnorm(1, mean = 0.01, sd = 0.05)
   
   ## historical population size ranges in the same absolute priors (range) as the current population size
   # At the moment prop_prior_N is N_pop, which means that the historical population size
   # ranges from 1 to N_pop, i.e. has the same range than the current pop size N0
-  N_hist_bot <- round(runif(1, min = (1 / prop_prior_N) * Ne_prop, max = Ne_prop), 7)
-  
+  #N_hist_bot <- round(runif(1, min = 1, max = 500000)) / N0
+  N_hist_bot <- rtruncnorm(1, a=1, b=500000, mean = 10000, sd = 150000)/ N0
   # 
   if (model == "bottleneck") {
     ms_options <- paste("-eN", end_bot, N_bot, "-eN", start_bot, N_hist_bot, sep = " ")
   }
   
   if (model == "neutral") {
-    # ms_options <- paste("-eN", start_bot, N_hist_bot, sep = " ")
-    ms_options <- NULL
+    ms_options <- paste("-eN", start_bot, N_hist_bot, sep = " ")
+    # ms_options <- NULL
   }
   
   # p_single <- rtruncnorm(1, a=0.7, b=1, mean = 0.85, sd = 0.07)
@@ -151,7 +115,7 @@ run_sim <- function(niter, N_pop, model, gen_time) {
   
   sum_stats <- sealABC::mssumstats(simd_data)
   
-  sim_param <- data.frame(N_pop, N0, mu, theta,
+  sim_param <- data.frame(N0, mu, theta,
                           start_bot, end_bot,
                           N_bot, N_hist_bot,
                           p_single, sigma2_g,
@@ -163,72 +127,18 @@ run_sim <- function(niter, N_pop, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 100000
-file_ext <- "sim100k_botunifprior_highmu.txt"
+num_sim <- 1000000
+file_ext <- "sim_onepopsize.txt"
+
+all_models = c("bottleneck", "neutral")
 
 ######### all simulations for 1000000 ###############
-N_pop <- 5000
-
-
-all_models = c("bottleneck", "neutral")
-
-run_sim_per_mod <- function(model){
-  
-  cl <- makeCluster(getOption("cl.cores", detectCores()-3))
-  clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-  
-  sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
-  sims_df <- as.data.frame(data.table::rbindlist(sims))
-  
-  stopCluster(cl)
-  
-  sims_df
-  
-}
-
-sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
-
-
-write.table(sims, file = paste0("sims_pop5k_", file_ext), row.names = FALSE)
-
-
-######### all simulations for 10000 ###############
-N_pop <- 50000
-
-all_models = c("bottleneck", "neutral")
-
 run_sim_per_mod <- function(model){
 
   cl <- makeCluster(getOption("cl.cores", detectCores()-3))
   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
 
-  sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
-  sims_df <- as.data.frame(data.table::rbindlist(sims))
-
-  stopCluster(cl)
-
-  sims_df
-}
-
-sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
-
-write.table(sims, file = paste0("sims_pop50k_", file_ext), row.names = FALSE)
-
-
-######### all simulations for 100000 ###############
-N_pop <- 500000
-
-
-all_models = c("bottleneck", "neutral")
-
-run_sim_per_mod <- function(model){
-
-  cl <- makeCluster(getOption("cl.cores", detectCores()-3))
-  clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-
-  sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
+  sims <- parLapply(cl, 1:num_sim, run_sim, model = model, gen_time = gen_time)
   sims_df <- as.data.frame(data.table::rbindlist(sims))
 
   stopCluster(cl)
@@ -237,39 +147,14 @@ run_sim_per_mod <- function(model){
 
 }
 
-sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
-
-write.table(sims, file = paste0("sims_pop500k_", file_ext), row.names = FALSE)
-
-
-
-
-
-# ######### all simulations for 1000000 ###############
-# N_pop <- 500000
-# 
-# 
-# all_models = c("bottleneck", "neutral")
-# 
 # run_sim_per_mod <- function(model){
-#   
-#   cl <- makeCluster(getOption("cl.cores", detectCores()-3))
-#   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-#   
-#   sims <- parLapply(cl, 1:num_sim, run_sim,  N_pop = N_pop, model = model, gen_time = gen_time)
+#   sims <-lapply(1:num_sim, run_sim, model = model, gen_time = gen_time)
 #   sims_df <- as.data.frame(data.table::rbindlist(sims))
-#   
-#   stopCluster(cl)
-#   
 #   sims_df
-#   
 # }
-# 
-# sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
-# sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
-# 
-# write.table(sims, file = "sims_pop500k_sim200k.txt", row.names = FALSE)
-# 
 
+sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
+sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
+
+write.table(sims, file = paste0("sims_full_", file_ext), row.names = FALSE)
 

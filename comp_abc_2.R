@@ -39,7 +39,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 for (pop_size in c("5k", "50k", "500k")){
   
   ## load all simulations
-  path_to_sims <- paste0("sims_pop", pop_size, "_sim300k_restr.txt")
+  path_to_sims <- paste0("sims_pop", pop_size, "_sim100k_botunifprior.txt")
   sims <-fread(path_to_sims, stringsAsFactors = FALSE)
   sims <- as.data.frame(sims)
   
@@ -97,7 +97,7 @@ for (pop_size in c("5k", "50k", "500k")){
       mutate(end_bot = 4 * N0 * end_bot) 
     
   ## abc method choice, all three possible
-    all_methods <- c( "neuralnet") # "ridge", "loclinear",
+    all_methods <- c( "loclinear") # "ridge", "loclinear",
     
     # extract species names
     all_species <- row.names(all_sumstats)

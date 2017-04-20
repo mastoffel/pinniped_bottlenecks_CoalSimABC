@@ -6,6 +6,14 @@
 nohup.out
 sims/
 *.pdf
-output/
+abc_estimates/
 num_iter/
+old_sims/
 plots/
+plots_simsstats/
+posterior_plots/
+results/
+output/
+
+
+
