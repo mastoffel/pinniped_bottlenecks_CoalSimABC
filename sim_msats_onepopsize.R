@@ -44,10 +44,13 @@ run_sim <- function(niter, model, gen_time) {
   
   ## diploid effective population size prior: from 1 to 500000
   # N0 <- round(runif(1, min = 1, max = 500000))
-  N0 <- rtruncnorm(1, a=1, b=500000, mean = 10000, sd = 150000)
+  N0 <- rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000)
   
   ## mutation rate
-  mu <- runif(1, min = 0.00001, max = 0.09)
+  # original mutation prior (however, posteriors rather around 0.001)
+ # mu <- runif(1, min = 0.00001, max = 0.009)
+  # prior similar to Pritchard et al 1999
+  mu <- rgamma(1, 2, rate = 10000e-1)
   # mu <- rtruncnorm(1, a=0, b=0.001, mean = 0.0001, sd = 0.0002)
   
   ## theta
@@ -84,7 +87,7 @@ run_sim <- function(niter, model, gen_time) {
   # At the moment prop_prior_N is N_pop, which means that the historical population size
   # ranges from 1 to N_pop, i.e. has the same range than the current pop size N0
   #N_hist_bot <- round(runif(1, min = 1, max = 500000)) / N0
-  N_hist_bot <- rtruncnorm(1, a=1, b=500000, mean = 10000, sd = 150000)/ N0
+  N_hist_bot <- rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000)/ N0
   # 
   if (model == "bottleneck") {
     ms_options <- paste("-eN", end_bot, N_bot, "-eN", start_bot, N_hist_bot, sep = " ")
@@ -97,12 +100,13 @@ run_sim <- function(niter, model, gen_time) {
   
   # p_single <- rtruncnorm(1, a=0.7, b=1, mean = 0.85, sd = 0.07)
   # tryout
-  p_single <-  runif(1, min = 0.7, max = 1) # probability of multi-step mutation is 0.2
+  p_single <-  runif(1, min = 0.7, max = 1) # 1 - probability of multi-step mutations
   
   
-  # sigma2_g <- runif(1, min = 1, max = 30) # typical step-size ~7
-  sigma2_g <- runif(1, min = 1, max = 15)
-  
+  # sigma2_g <- runif(1, min = 1, max = 30) 
+  # sigma2_g <- runif(1, min = 1, max = 15)
+  # new try with a gamma distribution
+  sigma2_g <- rgamma(1, 4, 0.9)
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -113,7 +117,7 @@ run_sim <- function(niter, model, gen_time) {
                                                       mutation_model = "tpm",
                                                       ms_options = ms_options), stringsAsFactors = FALSE)
   
-  sum_stats <- sealABC::mssumstats(simd_data)
+  sum_stats <- sealABC::mssumstats(simd_data, datatype = "microsimr")
   
   sim_param <- data.frame(N0, mu, theta,
                           start_bot, end_bot,
@@ -127,8 +131,8 @@ run_sim <- function(niter, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 1000000
-file_ext <- "sim_onepopsize.txt"
+num_sim <- 100000
+file_ext <- "1mio_sims_gammaprior.txt"
 
 all_models = c("bottleneck", "neutral")
 
@@ -156,5 +160,5 @@ run_sim_per_mod <- function(model){
 sims <- do.call(rbind, lapply(all_models, run_sim_per_mod))
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = paste0("sims_full_", file_ext), row.names = FALSE)
+write.table(sims, file = paste0("onepopprior_", file_ext), row.names = FALSE)
 
