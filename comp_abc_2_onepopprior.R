@@ -20,8 +20,8 @@ seal_descriptives <- read_excel("../data/all_data_seals.xlsx")
 all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")[1:28]
 
 # calculate summary statistics
-all_sumstats_full <- lapply(all_seals_full, function(x) mssumstats(x, type = "microsats", by_pop = "cluster", 
-                                                                   start_geno = 4, data_type = "empirical"))
+all_sumstats_full <- lapply(all_seals_full, function(x) mssumstats(x, datatype = "microsats", by_pop = "cluster", 
+                                                                   start_geno = 4, mratio = "loose"))
 
 sum_per_clust <- function(mssumstats_output) {
   if (nrow(mssumstats_output) > 1) {
@@ -41,13 +41,13 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 #               "mean_allele_range",  "mean_allele_size_var",
 #               "exp_het_mean")
 
-sumstats <- c("num_alleles_mean", "num_alleles_sd", "prop_low_afs_mean", "prop_low_afs_sd", "mean_allele_range", "sd_allele_range",  "mean_allele_size_var")
+sumstats <- c("num_alleles_mean", "num_alleles_sd", "prop_low_afs_mean", "prop_low_afs_sd")
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
 
 # load sims
-path_to_sims <- paste0("onepopprior_1mio_sims.txt")
+path_to_sims <- paste0("mu_gammaprior_1mio.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 
@@ -63,7 +63,7 @@ params <- c(1:12)
 # create a character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.001
+tol <- 0.0005
 # extract names of all models
 model_names <- names(table(models))
 # divide stats and parameters
@@ -97,7 +97,6 @@ sims_param <- sims[params]
   # assign(paste0("cv_nbot_", pop_size), all_cv_nbot)
   # 
   
-  
   ## transform model parameters to absolute values
   par_mod <- par_mod %>% 
     mutate(N_bot = N0 * N_bot) %>%
@@ -106,7 +105,7 @@ sims_param <- sims[params]
     mutate(end_bot = 4 * N0 * end_bot) 
   
   ## abc method choice, all three possible
-  all_methods <- c( "ridge") # "ridge", "loclinear",
+  all_methods <- c( "ridge") # "ridge", "loclinear", "neuralnet"
   
   # extract species names
   all_species <- row.names(all_sumstats)
@@ -130,6 +129,6 @@ sims_param <- sims[params]
   # save(list(all_args, abc_est), saved_file_name)
   
   abc_full <- list(all_args, abc_est)
-  save(abc_full, file = "abc_estimates/abc_full.RData")
+  save(abc_full, file = "abc_estimates/abc_full_gamma.RData")
   
   

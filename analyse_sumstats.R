@@ -16,9 +16,11 @@ library(magrittr)
 seal_descriptives <- read_excel("../data/seal_data_complete.xlsx")
 seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 20000, "5k", ifelse(Abundance < 300000, "50k", "500k")))
 
-sumstats <- c("num_alleles_mean",  "num_alleles_sd" , "mratio_mean",  "mratio_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd", "exp_het_mean", "exp_het_sd", "obs_het_mean", "obs_het_sd",
-              "mean_allele_size_var", "sd_allele_size_var", "het_excess", "mean_allele_range" )
+sumstats <- c("num_alleles_mean", "num_alleles_sd",
+              "prop_low_afs_mean", "prop_low_afs_sd",
+              "median_allele_size_kurtosis", 
+              "mean_allele_size_sd", "median_allele_range",
+              "exp_het_mean")
 
 
 

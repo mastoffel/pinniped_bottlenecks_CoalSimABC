@@ -26,8 +26,8 @@ run_sim <- function(niter, model, gen_time) {
   # N_samp <- round(runif(1, min = 20, max = 500), 0)
   #  N_loc <-  round(runif(1, min = 5, max = 30), 0)
   
-  N_samp <-  50
-  N_loc <- 10
+  N_samp <- 50
+  N_loc <- 20
   
   if (niter%%5000 == 0) {
     if (!file.exists("num_iter/iterations.txt")){
@@ -131,8 +131,8 @@ run_sim <- function(niter, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 100000
-file_ext <- "1mio_sims_gammaprior.txt"
+num_sim <- 1000000
+file_ext <- "1000k_gamma.txt"
 
 all_models = c("bottleneck", "neutral")
 
