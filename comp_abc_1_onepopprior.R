@@ -28,7 +28,7 @@ seal_descriptives <- read_excel("../data/all_data_seals.xlsx")
 ###### prepare data #######
 
 # load all_seals data for the 28 full datasets
-all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")[1:28]
+all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")[1:28] # 
 
 
 ##### calculate summary statistics #####
@@ -60,9 +60,9 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 #               "exp_het_mean")
 
 # names(sims)
-sumstats <- c("num_alleles_mean", "num_alleles_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd",
-              "exp_het_mean", "mean_allele_range", "mratio_mean")
+sumstats <- c("num_alleles_mean", "num_alleles_sd")
+              #"prop_low_afs_mean", "prop_low_afs_sd",
+              #"exp_het_mean", "mean_allele_range", "mratio_mean") # , 
 
 sumstats <- names(all_sumstats_full)
 
@@ -72,7 +72,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 ####### run abc step 1 ########
 
-sim_name <- "onepopprior_1000k_gamma"
+sim_name <- "onepopprior_500k_gamma_varsamp"
 
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name, ".txt")
@@ -93,11 +93,11 @@ params <- c(1:12)
 # create a character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.0005
+tol <- 0.001
 # cross-validation replicates / number of replicates used to estimate the null distribution of the goodness-of-fit statistic
 cv_rep <- 2
 # method for model selection with approximate bayesian computation, see ?postpr
-method <- "mnlogistic"
+method <- "neuralnet"
 # extract names of all models
 model_names <- names(table(models))
 # divide stats and parameters
@@ -118,7 +118,8 @@ dev.off() #only 129kb in size
   
   
 ### (2) can abc at all distinguish between the 4 models ?
-cv.modsel <- cv4postpr(models, sims_stats, nval=cv_rep, tol=tol, method=method)
+# just 10 reps here
+cv.modsel <- cv4postpr(models, sims_stats, nval=10, tol=tol, method=method)
 s <- summary(cv.modsel)
 png(paste0("plots/model_prob_plots/", sim_name, "confusion_mat.png"), width=4, height=4, units="in", res=300)
 plot(cv.modsel, names.arg= model_names)

@@ -1,18 +1,18 @@
 #### plot the calculated posteriors
-load("abc_estimates/abc_full.RData")
+load("abc_estimates/abc_full_gamma.RData")
 
 abc_full[[1]]
 
 ## load model probabilities
-model_probs <- read.table(paste0("results/model_probs/", "onepopprior_1mio_sims_model_selection.txt"))
+model_probs <- read.table(paste0("results/model_probs/", "onepopprior_500k_gamma_varsamp_model_selection.txt"))
 model_bot <- model_probs$bot > 0.5
 
 abc_bot <- list(abc_full[[1]][model_bot, ], abc_full[[2]][model_bot])
 
 
-par(mfrow = c(4, 7), mar=c(4,4,1,1))
+par(mfrow = c(2, 5), mar=c(4,4,1,1))
 
-for (i in 1:17) {
+for (i in 61:70) {
   hist(abc_bot[[2]][[i]]$adj.values, 
        main = abc_bot[[1]][i, 2], 
        xlab = abc_bot[[1]][i, 3],

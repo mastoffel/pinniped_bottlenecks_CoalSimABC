@@ -26,8 +26,8 @@ run_sim <- function(niter, model, gen_time) {
   # N_samp <- round(runif(1, min = 20, max = 500), 0)
   #  N_loc <-  round(runif(1, min = 5, max = 30), 0)
   
-  N_samp <- 50
-  N_loc <- 20
+  N_samp <- round(runif(1, min = 10, max = 100), 0)
+  N_loc <- round(runif(1, min = 5, max = 30), 0)
   
   if (niter%%5000 == 0) {
     if (!file.exists("num_iter/iterations.txt")){
@@ -48,7 +48,7 @@ run_sim <- function(niter, model, gen_time) {
   
   ## mutation rate
   # original mutation prior (however, posteriors rather around 0.001)
- # mu <- runif(1, min = 0.00001, max = 0.009)
+  # mu <- runif(1, min = 0.00001, max = 0.009)
   # prior similar to Pritchard et al 1999
   mu <- rgamma(1, 2, rate = 10000e-1)
   # mu <- rtruncnorm(1, a=0, b=0.001, mean = 0.0001, sd = 0.0002)
@@ -100,13 +100,15 @@ run_sim <- function(niter, model, gen_time) {
   
   # p_single <- rtruncnorm(1, a=0.7, b=1, mean = 0.85, sd = 0.07)
   # tryout
-  p_single <-  runif(1, min = 0.7, max = 1) # 1 - probability of multi-step mutations
+  p_single <-  runif(1, min = 0.8, max = 1) # 1 - probability of multi-step mutations
   
   
   # sigma2_g <- runif(1, min = 1, max = 30) 
   # sigma2_g <- runif(1, min = 1, max = 15)
   # new try with a gamma distribution
-  sigma2_g <- rgamma(1, 4, 0.9)
+  # sigma2_g <- rgamma(1, 4, 0.9)
+  # sigma2_g <- runif(1, min = 1, max = 15)
+  sigma2_g <- rgamma(1, 4, 1)
   
   simd_data <- as.data.frame(microsimr::sim_microsats(theta = theta,
                                                       n_ind = N_samp,
@@ -131,24 +133,24 @@ run_sim <- function(niter, model, gen_time) {
 
 
 ### number of all simulations
-num_sim <- 1000000
-file_ext <- "1000k_gamma.txt"
+num_sim <- 500000
+file_ext <- "500k_gamma_varsamp2.txt"
 
 all_models = c("bottleneck", "neutral")
 
 ######### all simulations for 1000000 ###############
 run_sim_per_mod <- function(model){
-
+  
   cl <- makeCluster(getOption("cl.cores", detectCores()-3))
   clusterEvalQ(cl, c(library("strataG"), library("splitstackshape"), library("truncnorm")))
-
+  
   sims <- parLapply(cl, 1:num_sim, run_sim, model = model, gen_time = gen_time)
   sims_df <- as.data.frame(data.table::rbindlist(sims))
-
+  
   stopCluster(cl)
-
+  
   sims_df
-
+  
 }
 
 # run_sim_per_mod <- function(model){

@@ -41,7 +41,9 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 #               "mean_allele_range",  "mean_allele_size_var",
 #               "exp_het_mean")
 
-sumstats <- c("num_alleles_mean", "num_alleles_sd", "prop_low_afs_mean", "prop_low_afs_sd")
+sumstats <- c("num_alleles_mean", "num_alleles_sd",
+              "prop_low_afs_mean", "prop_low_afs_sd",
+              "exp_het_mean", "mean_allele_range", "mratio_mean") 
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
@@ -105,7 +107,7 @@ sims_param <- sims[params]
     mutate(end_bot = 4 * N0 * end_bot) 
   
   ## abc method choice, all three possible
-  all_methods <- c( "ridge") # "ridge", "loclinear", "neuralnet"
+  all_methods <- c("neuralnet") # "ridge", "loclinear", "neuralnet"
   
   # extract species names
   all_species <- row.names(all_sumstats)
