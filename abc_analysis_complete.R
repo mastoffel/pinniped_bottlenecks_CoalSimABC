@@ -22,11 +22,11 @@ library(parallel)
 # preparations --------
 
 # name of the simulation (without the .txt), defines the names of all output files too
-sim_name <- "onepopprior_500k_gamma_varsamp"
+sim_name <- "1000k_1105"
 
 # parameter definition model selection (and later abc?)
 # tolerance rate
-tol <- 0.001
+tol <- 0.0001
 # cross-validation replicates / number of replicates used to estimate the null distribution of the goodness-of-fit statistic
 cv_rep <- 2
 # reps for confusion matrix (see ?cv4postpr)
@@ -35,7 +35,7 @@ nval_conf_matrix <- 5
 # "rejection", "mnlogistic", "neuralnet"
 method <- "neuralnet"
 # leave how many cores free?
-cores_not_to_use <- 10 
+cores_not_to_use <- 5 
 
 # load empirical microsatellites and calc sumstats ----------- 
 
@@ -64,10 +64,14 @@ sims <- as.data.frame(fread(path_to_sims, stringsAsFactors = FALSE))
 
 # choose summary statistics for abc ---------
 
-names(all_sumstats_full)
+# names(all_sumstats_full)
+#sumstats <- c("num_alleles_mean", "num_alleles_sd",
+#              "prop_low_afs_mean", "prop_low_afs_sd",
+#               "exp_het_mean", "mean_allele_size_sd", "mratio_mean") # , 
+
 sumstats <- c("num_alleles_mean", "num_alleles_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd",
-               "exp_het_mean", "mean_allele_range", "mratio_mean") # , 
+              "prop_low_afs_mean", "prop_low_afs_sd", 
+              "exp_het_mean")
 
 all_sumstats <- all_sumstats_full[sumstats]
 
@@ -238,7 +242,7 @@ stopCluster(cl)
 # the third element are the prior values
 
 abc_full <- list(all_args, abc_est, par_mod)
-save(abc_full, file = "abc_estimates/abc_full_gamma_all_methods.RData")
+save(abc_full, file = "abc_estimates/abc_1000k_1105_bot.RData")
 
 
 

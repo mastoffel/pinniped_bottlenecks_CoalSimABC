@@ -130,7 +130,7 @@ sims_param <- sims[params]
   # saved_file_name <- paste(paste0("abc_", pop_size),"RData",sep=".")
   # save(list(all_args, abc_est), saved_file_name)
   
-  abc_full <- list(all_args, abc_est)
-  save(abc_full, file = "abc_estimates/abc_full_gamma.RData")
+ abc_full <- list(all_args, abc_est)
+ save(abc_full, file = "abc_estimates/abc_full_gamma.RData")
   
   

@@ -18,9 +18,7 @@ seal_descriptives %<>% mutate(abund_level = ifelse(Abundance < 20000, "5k", ifel
 
 sumstats <- c("num_alleles_mean", "num_alleles_sd",
               "prop_low_afs_mean", "prop_low_afs_sd",
-              "median_allele_size_kurtosis", 
-              "mean_allele_size_sd", "median_allele_range",
-              "exp_het_mean")
+              "exp_het_mean", "mean_allele_size_sd", "mratio_mean")
 
 
 

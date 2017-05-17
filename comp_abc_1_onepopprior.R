@@ -60,11 +60,11 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 #               "exp_het_mean")
 
 # names(sims)
-sumstats <- c("num_alleles_mean", "num_alleles_sd")
-              #"prop_low_afs_mean", "prop_low_afs_sd",
-              #"exp_het_mean", "mean_allele_range", "mratio_mean") # , 
+sumstats <- c("num_alleles_mean", "num_alleles_sd",
+              "exp_het_mean", "exp_het_sd",
+               "mean_allele_size_sd", "mean_allele_range") # , 
 
-sumstats <- names(all_sumstats_full)
+# sumstats <- names(all_sumstats_full)
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
@@ -72,7 +72,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 ####### run abc step 1 ########
 
-sim_name <- "onepopprior_500k_gamma_varsamp"
+sim_name <- "sims_simcoal10k"
 
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name, ".txt")
@@ -89,15 +89,15 @@ all_sumstats <- all_sumstats_full
 all_seals <- all_seals_full
   
 # parameter columns in simulation data.frame
-params <- c(1:12)
+params <- c(15:27)
 # create a character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.001
+tol <- 0.005
 # cross-validation replicates / number of replicates used to estimate the null distribution of the goodness-of-fit statistic
 cv_rep <- 2
 # method for model selection with approximate bayesian computation, see ?postpr
-method <- "neuralnet"
+method <- "mnlogistic"
 # extract names of all models
 model_names <- names(table(models))
 # divide stats and parameters
