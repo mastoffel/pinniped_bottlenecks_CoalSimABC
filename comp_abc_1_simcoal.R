@@ -38,7 +38,7 @@ all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_an
 cl <- parallel::makeCluster(getOption("cl.cores", detectCores()-20))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- parallel::parLapply(cl, all_seals_full, 
-                                         function(x) mssumstats(x, by_pop = "cluster", start_geno = 4, mratio = "loose",
+                                         function(x) mssumstats(x, by_pop = NULL, start_geno = 4, mratio = "loose",
                                                                 rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = 5))
 stopCluster(cl)
 
@@ -67,10 +67,8 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 
 # names(sims)
 sumstats <- c("num_alleles_mean", "num_alleles_sd",
-              "exp_het_mean",  "exp_het_sd", 
-              "mean_allele_size_sd", "mean_allele_range", 
-              "mratio_mean", "mratio_sd",
-              "prop_low_afs_mean")
+              "exp_het_mean", "mratio_mean", "prop_low_afs_mean")
+              # "mean_allele_size_sd", "mean_allele_range", 
               #"mean_allele_size_kurtosis", "sd_allele_size_kurtosis"
               # ) # , 
 
@@ -82,7 +80,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 ####### run abc step 1 ########
 
-sim_name <- "sims_simcoal500k_corrected"
+sim_name <- "sims_2000k_optimal"
 
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name, ".txt")
@@ -105,11 +103,11 @@ params <- c(param_start:param_end)
 # create a character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.005
+tol <- 0.001
 # cross-validation replicates / number of replicates used to estimate the null distribution of the goodness-of-fit statistic
-cv_rep <- 100
+cv_rep <- 2
 # method for model selection with approximate bayesian computation, see ?postpr
-method <- 'neuralnet'
+method <- 'mnlogistic'
 # extract names of all models
 model_names <- names(table(models))
 # divide stats and parameters
@@ -131,7 +129,7 @@ dev.off() #only 129kb in size
   
 ### (2) can abc at all distinguish between the 4 models ?
 # just 10 reps here
-cv.modsel <- cv4postpr(models, sims_stats, nval=10, tol=tol, method=method)
+cv.modsel <- cv4postpr(models, sims_stats, nval=2, tol=tol, method=method)
 s <- summary(cv.modsel)
 png(paste0("plots/model_prob_plots/", sim_name, "confusion_mat.png"), width=4, height=4, units="in", res=300)
 plot(cv.modsel, names.arg= model_names)

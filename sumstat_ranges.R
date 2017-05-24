@@ -20,7 +20,7 @@ all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_an
 cl <- parallel::makeCluster(getOption("cl.cores", detectCores()-20))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- parallel::parLapply(cl, all_seals_full, 
-                                         function(x) mssumstats(x, by_pop = "cluster", start_geno = 4, mratio = "loose",
+                                         function(x) mssumstats(x, by_pop = NULL, start_geno = 4, mratio = "loose",
                                                                 rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = 5))
 stopCluster(cl)
 
@@ -52,7 +52,7 @@ sumstats <- c("num_alleles_mean", "num_alleles_sd",
 # plot histograms for all summary statistics for all pop_size simulations relative to the empirical data
 
 # load simulations
-path_to_sims <- paste0("sims_simcoal500k_corrected.txt")
+path_to_sims <- paste0("sims_2000k_optimal.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 
@@ -68,11 +68,11 @@ pdf(file = paste0("plots_simsstats/simcoal.", sumstat, ".pdf"), width = 10, heig
   for (i in 1:length(all_sumstats_full$species)){
     title <- all_sumstats_full$species[i]
     # bottleneck
-    hist(sims_bot[[sumstat]], main = title, xlab = sumstat, breaks = 100)
+    hist(sims_bot[[sumstat]], main = title, xlab = sumstat)
     abline(v=all_sumstats_full[i, sumstat], col="red", lwd = 3)
     abline(v=mean(sims_bot[[sumstat]], na.rm = TRUE), col="blue", lwd = 3)
     # neutral
-    hist(sims_neut[[sumstat]], main = title, xlab = sumstat, breaks = 100)
+    hist(sims_neut[[sumstat]], main = title, xlab = sumstat)
     abline(v=all_sumstats_full[i, sumstat], col="red", lwd = 3)
     abline(v=mean(sims_neut[[sumstat]], na.rm = TRUE), col="blue", lwd = 3)
   }
