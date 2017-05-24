@@ -4,13 +4,13 @@ library(truncnorm)
 library(parallel)
 
 # number of simulations
-num_sim <- 500000
+num_sim <- 1500000
 
 # create data.frame with all parameter values ---------------
 # sample size
-sample_size <- rep(50, num_sim)
+sample_size <- rep(30, num_sim)
 # number of loci
-num_loci <- rep(20, num_sim)
+num_loci <- rep(5, num_sim)
 
 # simulate diploid effective pop size, bottleneck size and historical pop size
 # make sure that bottleneck pop size is smaller than historical pop size and current pop size
@@ -19,9 +19,9 @@ create_N <- function(){
   nhist <- 1
   pop_size <- 1
   while(!(nbot < pop_size) & !(nbot < nhist)){
-    pop_size <- round(rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000), 0)
-    nbot <- round(runif(1, min = 1, max = 500), 0)
-    nhist <- round(rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000), 0)
+    pop_size <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0) # originally rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000)
+    nbot <- round(runif(1, min = 1, max = 300), 0) ## originally 500
+    nhist <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0)
   }
   c(pop_size, nbot, nhist)
 }
@@ -30,7 +30,8 @@ names(all_N) <- c("pop_size", "nbot", "nhist")
 
 # calculate popsizes relative to current effective popsize
 all_N <- mutate(all_N, nbot_prop = nbot / pop_size)
-all_N <- mutate(all_N, nhist_prop = nbot / nhist)
+all_N <- mutate(all_N, nhist_bot_prop = nhist / nbot)
+all_N <- mutate(all_N, nhist_neut_prop = nhist / pop_size)
 
 # simulate vectors for end and start of bottleneck
 # min generation time is 6 years, max is 21.6 in the Pinnipeds
@@ -49,10 +50,10 @@ all_t <- as.data.frame(t(replicate(num_sim, create_t())))
 names(all_t) <- c("tbotend", "tbotstart")
 
 # mutation model
-mut_rate <- rgamma(num_sim, 4, rate = 1000)
+mut_rate <- rgamma(num_sim, 1.5, rate = 1500)
 # parameter of the geometric distribution: decides about the proportion of multistep mutations
-gsm_param <- runif(num_sim, min = 0, max = 0.3)
-range_constraint <- rep(30, num_sim)
+gsm_param <- runif(num_sim, min = 0, max = 0.2)
+range_constraint <- rep(35, num_sim)
 
 all_params <- data.frame(sample_size, num_loci, all_N, all_t, mut_rate, gsm_param, range_constraint, param_num = 1:num_sim)
 
@@ -70,14 +71,14 @@ run_sims <- function(param_set, model){
   if (model == "bottleneck"){
     hist_ev <- strataG::fscHistEv(
       num.gen = c(param_set[["tbotend"]], param_set[["tbotstart"]]), source.deme = c(0, 0),
-      sink.deme = c(0, 0), new.sink.size = c(param_set[["nbot_prop"]], param_set[["nhist_prop"]])
+      sink.deme = c(0, 0), new.sink.size = c(param_set[["nbot_prop"]], param_set[["nhist_bot_prop"]])
     )
   }
   
   if (model == "neutral"){
     hist_ev <- strataG::fscHistEv(
       num.gen = param_set[["tbotstart"]], source.deme = 0,
-      sink.deme = 0, new.sink.size = param_set[["nhist_prop"]]
+      sink.deme = 0, new.sink.size = param_set[["nhist_neut_prop"]]
     )
   }
   
@@ -101,7 +102,7 @@ run_sims <- function(param_set, model){
   # exp_het
   exp_het <- strataG::exptdHet(sim_msats)
   exp_het_mean <- mean(exp_het, na.rm = TRUE)
-  exp_het_sd <- mean(exp_het, na.rm = TRUE)
+  exp_het_sd <- sd(exp_het, na.rm = TRUE)
   # obs_het
   obs_het <- strataG::obsvdHet(sim_msats)
   obs_het_mean <- mean(obs_het, na.rm = TRUE)
@@ -115,7 +116,7 @@ run_sims <- function(param_set, model){
   # prop low frequency alleles
   prop_low_af <- function(afs){
     # low_afs <- (afs[, "freq"] / sum(afs[, "freq"])) < 0.05
-    low_afs <- afs[, "prop"] < 0.05
+    low_afs <- afs[, "prop"] <= 0.025
     prop_low <- sum(low_afs) / length(low_afs)
   }
   # and mean/sd for all
@@ -126,16 +127,29 @@ run_sims <- function(param_set, model){
   allele_range <- unlist(lapply(afs, function(x) diff(range(as.numeric(row.names(x))))))
   mean_allele_range <- mean(allele_range, na.rm = TRUE)
   sd_allele_range <- sd(allele_range, na.rm = TRUE)
-  # allele size variance
-  allele_size_sd <- unlist(lapply(afs, function(x) sd(as.numeric(row.names(x)), na.rm = TRUE)))
-  mean_allele_size_sd <- mean(allele_size_sd, na.rm = TRUE)
-  sd_allele_size_sd <- sd(allele_size_sd, na.rm = TRUE)
+  
+  # allele size variance and kurtosis
+  # create vector of all alleles per locus
+  all_alleles <- function(afs_element){
+    alleles <- as.numeric(rep(row.names(afs_element), as.numeric(afs_element[, "freq"])))
+    size_sd <- stats::sd(alleles)
+    size_kurtosis <- moments::kurtosis(alleles, na.rm = TRUE)
+    out <- data.frame(size_sd = size_sd, size_kurtosis = size_kurtosis)
+  }
+  all_allele_size_ss <- do.call(rbind, lapply(afs, all_alleles))
+  
+  mean_allele_size_sd <- mean(all_allele_size_ss$size_sd, na.rm = TRUE)
+  sd_allele_size_sd <- sd(all_allele_size_ss$size_sd, na.rm = TRUE)
+  
+  mean_allele_size_kurtosis <- mean(all_allele_size_ss$size_kurtosis, na.rm = TRUE)
+  sd_allele_size_kurtosis <- sd(all_allele_size_ss$size_kurtosis, na.rm = TRUE)
   
   out <- data.frame(
     num_alleles_mean, num_alleles_sd,
     exp_het_mean, exp_het_sd,
     obs_het_mean, obs_het_sd,
     mean_allele_size_sd, sd_allele_size_sd,
+    mean_allele_size_kurtosis, sd_allele_size_kurtosis,
     mean_allele_range, sd_allele_range,
     mratio_mean, mratio_sd,
     prop_low_afs_mean, prop_low_afs_sd
@@ -173,4 +187,4 @@ sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_simcoal500k.txt", row.names = FALSE)
+write.table(sims, file = "sims_simcoal1500k_corrected.txt", row.names = FALSE)

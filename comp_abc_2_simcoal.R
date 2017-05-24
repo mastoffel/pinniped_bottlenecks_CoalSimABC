@@ -10,7 +10,7 @@ library(ggplot2)
 library(readxl)
 library(dplyr)
 library(magrittr)
-
+library(parallel)
 
 #### load all seal descriptive data and add a maximum effect population size variable ####
 seal_descriptives <- read_excel("../data/all_data_seals.xlsx")
@@ -45,11 +45,10 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 #               "exp_het_mean")
 
 sumstats <- c("num_alleles_mean", "num_alleles_sd",
-              "exp_het_mean", "exp_het_sd",
+              #"exp_het_mean", "exp_het_sd",
               "mean_allele_size_sd", "sd_allele_size_sd",
-              "mean_allele_range", "sd_allele_range",
-              "mratio_mean" , "mratio_sd",
-              "prop_low_afs_mean", "prop_low_afs_sd") 
+               "mean_allele_range", "sd_allele_range",
+              "mratio_mean" , "prop_low_afs_mean") 
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
@@ -69,7 +68,7 @@ params <- c(param_start:param_end)
 # create a character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.005
+tol <- 0.0005
 # extract names of all models
 model_names <- names(table(models))
 # divide stats and parameters
@@ -94,29 +93,22 @@ sims_param <- sims[params]
   # if (mod == "bot"){
   
   # # before inference, we see whether a parameter can be estimated at all
-  # cv_nbot <- function(method, nval = 50, tols = c(.001,.01, 0.005)){
-  #   cv_res_rej <- cv4abc(data.frame(Na=par_mod[,"N_bot"]), stat_mod, nval=nval,
+  # cv_nbot <- function(method, nval = 50, tols = c(0.001, 0.0001, 0.00005)){
+  #   cv_res_rej <- cv4abc(data.frame(Na=par_mod[,"nbot"]), stat_mod, nval=nval,
   #                        tols=tols, method=method)
   # }
-  
-  # all_cv_nbot <- lapply(c("loclinear", "ridge"), cv_nbot, nval = 30)
+  # 
+  # all_cv_nbot <- lapply(c("neuralnet"), cv_nbot, nval = 50)
   # assign(paste0("cv_nbot_", pop_size), all_cv_nbot)
   # 
   
-  ## transform model parameters to absolute values
-  par_mod <- par_mod %>% 
-    mutate(N_bot = N0 * N_bot) %>%
-    mutate(N_hist_bot = N0 * N_hist_bot) %>%
-    mutate(start_bot = 4 * N0 * start_bot) %>%
-    mutate(end_bot = 4 * N0 * end_bot) 
-  
   ## abc method choice, all three possible
-  all_methods <- c("neuralnet") # "ridge", "loclinear", "neuralnet"
+  all_methods <- c("ridge") # "ridge", "loclinear", "neuralnet"
   
   # extract species names
   all_species <- row.names(all_sumstats)
   # parameters to estimate posteriors
-  all_parameters <- c("N_bot", "N0", "mu", "start_bot", "end_bot", "N_hist_bot", "sigma2_g", "p_single") # "N0", "mu", "start_bot", "end_bot", "N_hist_bot", "sigma2_g"
+  all_parameters <- c("nbot", "pop_size", "mut_rate", "tbotstart", "tbotend", "nhist", "gsm_param") # "N0", "mu", "start_bot", "end_bot", "N_hist_bot", "sigma2_g"
   
   # get all combinations of method, species and parameters
   all_args <- expand.grid(all_methods,all_species, all_parameters)
