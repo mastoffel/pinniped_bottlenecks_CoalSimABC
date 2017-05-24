@@ -1,4 +1,18 @@
-# comparative analysis of abc output 1
+# the script runs an abc analysis with one set of simulations on 
+# multiple emprical microsatellite dataframes
+
+# (1) definition of parameter values and wether to run a cross-validation
+# on each parameter via pseudo-observed datasets taken from the prior distribution
+# (2) calculates summary statistics with the sealABC package and transforms
+# them into a clean data.frame
+# (3) user selects summary statistics
+# (4) simulations are read from a text file in split up into parameters
+# and summary statistics
+# (5) user chooses one of the models to do abc on (will be generalized to all models soon)
+# (6) cross-validation with cv4abc if specified in (1)
+# (7) abc for all species where a given model had the highest probability as
+# saved under results/model_probs. abc can be done with different methods
+# on all species and paramaters and is saved under abc_estimates/
 
 # load packages 
 library(devtools)
