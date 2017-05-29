@@ -30,21 +30,21 @@ library(parallel)
 
 # parameter definition ---------------------------------------------------------
 # path to simulation
-sims_name <- "sims_2000k_optimal"
+sims_name <- "sims_5000k"
 
 # do a cross validation for the abc parameters? ?cv4abc
-calc_cv_for_abc <- TRUE
+calc_cv_for_abc <- FALSE
 # if yes, which method?
 method_cv <- "loclinear"
 # how many pseudo-observed datasets should be evaluated?
-nval_cv <- 50
+nval_cv <- 100
 # which tolerance level(s)?
 tols_cv <- c(0.005)
 
 # tolerance level for abc
-tol_abc <- 0.005
+tol_abc <- 0.0001
 ## abc method choice, all three possible
-all_methods <- c("ridge", "loclinear", "neuralnet") # "ridge", "loclinear", "neuralnet"
+all_methods <- c("neuralnet") # "ridge", "loclinear", "neuralnet"
 
 # prepare empirical data -------------------------------------------------------
 
@@ -75,7 +75,8 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 # select summary statistics for posteriors. ------------------------------------
 
 sumstats <- c("num_alleles_mean", "num_alleles_sd",
-              "exp_het_mean", "mratio_mean", "prop_low_afs_mean")
+              "exp_het_mean", "mratio_mean", "prop_low_afs_mean",
+              "mean_allele_range")
 all_sumstats_full <- all_sumstats_full[sumstats]
 
 
@@ -100,6 +101,7 @@ sims_param <- sims[params]
   
 
 # just use bottleneck model
+# mod <- "bot"
 mod <- "bot"
 
 # subset sims_stats and sims_param for the given model
@@ -118,8 +120,9 @@ if (calc_cv_for_abc == TRUE) {
   pars <- c("nbot", "nhist", "tbotend", "tbotstart", "mut_rate", "gsm_param")
   
   cv_res <- cv_nbot(method = method_cv, pars = pars, nval = nval_cv,  tols = tols_cv)
-  out <- paste0("abc_estimates/cv_params_", sims_name, ".txt")
-  write.table(cv_res, file = out, row.names = FALSE)
+  out <- paste0("abc_estimates/cv_params_", sims_name, ".RData")
+  # write.table(cv_res, file = out, row.names = FALSE)
+  save(cv_res, file = out)
 }
 
 # run the actual abc analysis --------------------------------------------------
@@ -128,10 +131,15 @@ if (calc_cv_for_abc == TRUE) {
 model_probs <- read.table(paste0("results/model_probs/", 
                                  sims_name, "_model_selection.txt"))
 model_bot <- model_probs$bot > 0.5
-
+model_neut <- model_probs$bot <= 0.5
 # extract species names for species that have been bottlenecked according
 # to the model selection
-all_species <- row.names(all_sumstats_full)[model_bot]
+if (mod == "bot") {
+  all_species <- row.names(all_sumstats_full)[model_bot]
+} else if (mod == "neut") {
+  all_species <- row.names(all_sumstats_full)[model_neut]
+}
+
 
 # parameters to estimate posteriors
 all_parameters <- c("nbot", "pop_size", "mut_rate", "tbotstart", 
@@ -142,15 +150,23 @@ all_args <- expand.grid(all_methods, all_species, all_parameters)
 all_args <- data.frame(apply(all_args, 2, as.character), stringsAsFactors = FALSE)
 names(all_args) <- c("methods", "species", "pars")
 
-## run abc
-abc_est <- apply(all_args, 1, function(x) {
-  abc(target = all_sumstats[x["species"], ], param = par_mod[, x["pars"]], 
-      sumstat = stat_mod, tol = tol_abc, method = x["methods"])
-})
+## run abc in parallel
+
+cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 35))
+clusterEvalQ(cl,library("abc"))
+# clusterExport(cl, varlist = c("all_sumstats", "par_mod", "stat_mod", "tol_abc"), envir = environment())
+
+one_abc <- function(arg_set, all_sumstats_full, par_mod, stat_mod, tol_abc){
+  abc(target = all_sumstats_full[arg_set["species"], ], param = par_mod[, arg_set["pars"]], 
+      sumstat = stat_mod, tol = tol_abc, method = arg_set["methods"])
+}
+abc_est <- parallel::parApply(cl, all_args, 1, one_abc,  all_sumstats_full, par_mod, stat_mod, tol_abc)
+
+stopCluster(cl)
 
 # create a list of 2. The first element ist the parameter data.frame for the abc. 
 # The second element are the corresponding abc objects.
 
 abc_full <- list(all_args, abc_est)
-save(abc_full, file = "abc_estimates/abc_", sims_name, ".RData")
+save(abc_full, file = paste0("abc_estimates/abc_", sims_name, ".RData"))
 
