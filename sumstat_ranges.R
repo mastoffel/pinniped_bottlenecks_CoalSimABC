@@ -21,7 +21,7 @@ cl <- parallel::makeCluster(getOption("cl.cores", detectCores()-20))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- parallel::parLapply(cl, all_seals_full, 
                                          function(x) mssumstats(x, by_pop = NULL, start_geno = 4, mratio = "loose",
-                                                                rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = 5))
+                                                                rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = NULL))
 stopCluster(cl)
 
 # for clustered populations, a mean between clusters is calculated
@@ -52,7 +52,7 @@ sumstats <- c("num_alleles_mean", "num_alleles_sd",
 # plot histograms for all summary statistics for all pop_size simulations relative to the empirical data
 
 # load simulations
-path_to_sims <- paste0("sims_2000k_optimal.txt")
+path_to_sims <- paste0("sims_3000k.txt")
 sims <-fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
 

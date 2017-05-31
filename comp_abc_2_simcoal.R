@@ -42,9 +42,9 @@ nval_cv <- 100
 tols_cv <- c(0.005)
 
 # tolerance level for abc
-tol_abc <- 0.0001
+tol_abc <- 0.0005
 ## abc method choice, all three possible
-all_methods <- c("neuralnet") # "ridge", "loclinear", "neuralnet"
+all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 
 # prepare empirical data -------------------------------------------------------
 
@@ -56,7 +56,7 @@ cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 20))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- 
   parallel::parLapply(cl, all_seals_full, mssumstats, by_pop = NULL, start_geno = 4, mratio = "loose",
-                                              rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = 5)
+                                              rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = NULL)
 stopCluster(cl)
 
 sum_per_clust <- function(mssumstats_output) {

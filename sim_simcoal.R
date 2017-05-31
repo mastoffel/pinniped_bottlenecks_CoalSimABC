@@ -4,13 +4,13 @@ library(truncnorm)
 library(parallel)
 
 # number of simulations
-num_sim <- 5000000
+num_sim <- 1000000
 
 # create data.frame with all parameter values ---------------
 # sample size
 sample_size <- rep(30, num_sim)
 # number of loci
-num_loci <- rep(5, num_sim)
+num_loci <- rep(10, num_sim)
 
 # simulate diploid effective pop size, bottleneck size and historical pop size
 # make sure that bottleneck pop size is smaller than historical pop size and current pop size
@@ -20,10 +20,10 @@ create_N <- function(){
   pop_size <- 1
   while(!(nbot < pop_size) & !(nbot < nhist)){
     # pop_size <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0) # originally rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000)
-    pop_size <- round(runif(1, min = 1, max = 100000)) # new uniform priors
-    nbot <- round(runif(1, min = 1, max = 500), 0) ## originally 500
+    pop_size <- round(runif(1, min = 1, max = 80000)) # new uniform priors
+    nbot <- round(runif(1, min = 1, max = 400), 0) ## originally 500
     # nhist <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0)
-    nhist <- round(runif(1, min = 1, max = 100000)) # new uniform priors
+    nhist <- round(runif(1, min = 1, max = 80000)) # new uniform priors
   }
   c(pop_size, nbot, nhist)
 }
@@ -43,8 +43,8 @@ create_t <- function(){
   tbotend <- 1
   tbotstart <- 1
   while(!(tbotend < tbotstart)){
-    tbotend <- runif(1, min = 1, max = 40)
-    tbotstart <- runif(1, min = 10, max = 80)
+    tbotend <- round(runif(1, min = 1, max = 40))
+    tbotstart <- round(runif(1, min = 10, max = 60))
   }
   c(tbotend, tbotstart)
 }
@@ -55,8 +55,8 @@ names(all_t) <- c("tbotend", "tbotstart")
 # mut_rate <- rgamma(num_sim, 1.5, rate = 1500)
 mut_rate <- runif(num_sim, 0, 0.001)
 # parameter of the geometric distribution: decides about the proportion of multistep mutations
-gsm_param <- runif(num_sim, min = 0, max = 0.3)
-range_constraint <- rep(35, num_sim)
+gsm_param <- runif(num_sim, min = 0, max = 0.2)
+range_constraint <- rep(20, num_sim)
 
 all_params <- data.frame(sample_size, num_loci, all_N, all_t, mut_rate, gsm_param, range_constraint, param_num = 1:num_sim)
 
@@ -190,4 +190,4 @@ sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_5000k.txt", row.names = FALSE)
+write.table(sims, file = "sims_1000k.txt", row.names = FALSE)

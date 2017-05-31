@@ -39,7 +39,7 @@ cl <- parallel::makeCluster(getOption("cl.cores", detectCores()-20))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- parallel::parLapply(cl, all_seals_full, 
                                          function(x) mssumstats(x, by_pop = NULL, start_geno = 4, mratio = "loose",
-                                                                rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = 5))
+                                                                rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = NULL)) # 
 stopCluster(cl)
 
 
@@ -81,7 +81,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 ####### run abc step 1 ########
 
-sim_name <- "sims_5000k"
+sim_name <- "sims_1000k"
 
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name, ".txt")
@@ -104,11 +104,11 @@ params <- c(param_start:param_end)
 # create a character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.0001
+tol <- 0.001
 # cross-validation replicates / number of replicates used to estimate the null distribution of the goodness-of-fit statistic
 cv_rep <- 2
 # method for model selection with approximate bayesian computation, see ?postpr
-method <- 'neuralnet'
+method <- 'mnlogistic'
 # extract names of all models
 model_names <- names(table(models))
 # divide stats and parameters
