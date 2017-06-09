@@ -30,7 +30,7 @@ library(parallel)
 
 # parameter definition ---------------------------------------------------------
 # path to simulation
-sims_name <- "sims_5000k"
+sims_name <- "sims_500k"
 
 # do a cross validation for the abc parameters? ?cv4abc
 calc_cv_for_abc <- FALSE
@@ -42,7 +42,7 @@ nval_cv <- 100
 tols_cv <- c(0.005)
 
 # tolerance level for abc
-tol_abc <- 0.0005
+tol_abc <- 0.001
 ## abc method choice, all three possible
 all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 
@@ -56,7 +56,7 @@ cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 20))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- 
   parallel::parLapply(cl, all_seals_full, mssumstats, by_pop = NULL, start_geno = 4, mratio = "loose",
-                                              rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = NULL)
+                                              rarefaction = TRUE, nresamp = 1000, nind = 40, nloc = NULL)
 stopCluster(cl)
 
 sum_per_clust <- function(mssumstats_output) {
@@ -74,7 +74,7 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 
 # select summary statistics for posteriors. ------------------------------------
 
-sumstats <- c("num_alleles_mean", "num_alleles_sd",
+sumstats <- c("num_alleles_mean", 
               "exp_het_mean", "mratio_mean", "prop_low_afs_mean",
               "mean_allele_range")
 all_sumstats_full <- all_sumstats_full[sumstats]

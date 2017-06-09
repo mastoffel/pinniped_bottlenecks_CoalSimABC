@@ -39,7 +39,7 @@ cl <- parallel::makeCluster(getOption("cl.cores", detectCores()-20))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- parallel::parLapply(cl, all_seals_full, 
                                          function(x) mssumstats(x, by_pop = NULL, start_geno = 4, mratio = "loose",
-                                                                rarefaction = TRUE, nresamp = 1000, nind = 30, nloc = NULL)) # 
+                                                                rarefaction = TRUE, nresamp = 1000, nind = 40, nloc = NULL)) # 
 stopCluster(cl)
 
 
@@ -66,9 +66,11 @@ all_sumstats_full <- do.call(rbind, all_sumstats_full)
 #               "exp_het_mean")
 
 # names(sims)
-sumstats <- c("num_alleles_mean", "num_alleles_sd",
-              "exp_het_mean", "mratio_mean", "prop_low_afs_mean",
-              "mean_allele_range")
+sumstats <- c("num_alleles_mean", 
+              "prop_low_afs_mean",
+              "mean_allele_range",  
+              "mratio_mean",  
+              "exp_het_mean")
               # "mean_allele_size_sd", "mean_allele_range", 
               #"mean_allele_size_kurtosis", "sd_allele_size_kurtosis"
               # ) # , 
@@ -81,7 +83,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 ####### run abc step 1 ########
 
-sim_name <- "sims_1000k"
+sim_name <- "sims_1500k"
 
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name, ".txt")

@@ -4,11 +4,11 @@ library(truncnorm)
 library(parallel)
 
 # number of simulations
-num_sim <- 1000000
+num_sim <- 1500000
 
 # create data.frame with all parameter values ---------------
 # sample size
-sample_size <- rep(30, num_sim)
+sample_size <- rep(40, num_sim)
 # number of loci
 num_loci <- rep(10, num_sim)
 
@@ -20,10 +20,12 @@ create_N <- function(){
   pop_size <- 1
   while(!(nbot < pop_size) & !(nbot < nhist)){
     # pop_size <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0) # originally rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000)
-    pop_size <- round(runif(1, min = 1, max = 80000)) # new uniform priors
-    nbot <- round(runif(1, min = 1, max = 400), 0) ## originally 500
+    pop_size <- round(rlnorm(1, 10.5, 1))
+    # pop_size <- round(runif(1, min = 1, max = 100000)) # new uniform priors
+    nbot <- round(runif(1, min = 1, max = 500), 0) ## originally 500
     # nhist <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0)
-    nhist <- round(runif(1, min = 1, max = 80000)) # new uniform priors
+    # nhist <- round(runif(1, min = 1, max = 100000)) # new uniform priors
+    nhist <- round(round(rlnorm(1, 10.5, 1)))
   }
   c(pop_size, nbot, nhist)
 }
@@ -42,9 +44,10 @@ all_N <- mutate(all_N, nhist_neut_prop = nhist / pop_size)
 create_t <- function(){
   tbotend <- 1
   tbotstart <- 1
-  while(!(tbotend < tbotstart)){
-    tbotend <- round(runif(1, min = 1, max = 40))
-    tbotstart <- round(runif(1, min = 10, max = 60))
+  # duration of bottleneck is at least 5 generations!
+  while(!((tbotstart - tbotend) > 5)) {
+    tbotend <- round(runif(1, min = 1, max = 30))
+    tbotstart <- round(runif(1, min = 10, max = 70))
   }
   c(tbotend, tbotstart)
 }
@@ -53,10 +56,10 @@ names(all_t) <- c("tbotend", "tbotstart")
 
 # mutation model
 # mut_rate <- rgamma(num_sim, 1.5, rate = 1500)
-mut_rate <- runif(num_sim, 0, 0.001)
+mut_rate <- runif(num_sim, 1e-05, 4e-04)
 # parameter of the geometric distribution: decides about the proportion of multistep mutations
-gsm_param <- runif(num_sim, min = 0, max = 0.2)
-range_constraint <- rep(20, num_sim)
+gsm_param <- runif(num_sim, min = 0, max = 0.3)
+range_constraint <- rep(30, num_sim)
 
 all_params <- data.frame(sample_size, num_loci, all_N, all_t, mut_rate, gsm_param, range_constraint, param_num = 1:num_sim)
 
@@ -174,7 +177,7 @@ run_sims <- function(param_set, model){
 
 
 # gives errors
-cl <- makeCluster(getOption("cl.cores", 50))
+cl <- makeCluster(getOption("cl.cores", 40))
 clusterEvalQ(cl, c(library("strataG")))
 
 sims_bot <- parApply(cl, all_params, 1, run_sims, model = "bottleneck")
@@ -190,4 +193,4 @@ sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_1000k.txt", row.names = FALSE)
+write.table(sims, file = "sims_1500k.txt", row.names = FALSE)

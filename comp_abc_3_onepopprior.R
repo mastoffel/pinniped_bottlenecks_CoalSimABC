@@ -1,16 +1,16 @@
 #### plot the calculated posteriors for all bottlenecked species
-load("abc_estimates/abc_sims_5000k.RData")
+load("abc_estimates/abc_sims_500k.RData")
 
 abc_full[[1]]
 nrow(abc_full[[1]])
 
-par(mfrow = c(3, 5), mar=c(4,4,1,1))
+par(mfrow = c(3, 3), mar=c(4,4,1,1))
 
-for (i in 91:105) {
+for (i in 46:54) {
   hist(abc_full[[2]][[i]]$adj.values, 
        main = abc_full[[1]][i, 2], 
        xlab = abc_full[[1]][i, 3],
-       #xlim = c(0, 0.005),
+       #xlim = c(0, 10000),
        breaks = 100) #caption = abc_5k[[1]][i, 2], ,  xlab = abc_5k[[1]][i, 3]
 }
 
