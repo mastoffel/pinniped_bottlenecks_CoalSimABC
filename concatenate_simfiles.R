@@ -1,7 +1,7 @@
 # script to concatenate two simulation txt files and save as new one
-sim_name1 <- "sims_simcoal500k_corrected"
-sim_name2 <- "sims_simcoal1500k_corrected"
-output_name <- "sims_2000k_optimal.txt"
+sim_name1 <- "sims_5000k_large_bot"
+sim_name2 <- "sims_5000k_large_bot2"
+output_name <- "sims_10000k.txt"
 
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name1, ".txt")

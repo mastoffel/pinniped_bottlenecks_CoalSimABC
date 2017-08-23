@@ -30,19 +30,21 @@ library(parallel)
 
 # parameter definition ---------------------------------------------------------
 # path to simulation
-sims_name <- "sims_500k"
+sims_name <- "sims_10000k"
 
 # do a cross validation for the abc parameters? ?cv4abc
-calc_cv_for_abc <- FALSE
+calc_cv_for_abc <- TRUE
 # if yes, which method?
 method_cv <- "loclinear"
 # how many pseudo-observed datasets should be evaluated?
 nval_cv <- 100
 # which tolerance level(s)?
-tols_cv <- c(0.005)
+tols_cv <- c(0.0005)
 
+# do abc?
+abc_analysis <- TRUE
 # tolerance level for abc
-tol_abc <- 0.001
+tol_abc <- 0.0005
 ## abc method choice, all three possible
 all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 
@@ -52,7 +54,7 @@ all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop.xlsx")[1:28]
 
 # calculate summary statistics
-cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 20))
+cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 10))
 clusterEvalQ(cl, c(library("sealABC")))
 all_sumstats_full <- 
   parallel::parLapply(cl, all_seals_full, mssumstats, by_pop = NULL, start_geno = 4, mratio = "loose",
@@ -102,7 +104,8 @@ sims_param <- sims[params]
 
 # just use bottleneck model
 # mod <- "bot"
-mod <- "bot"
+# mod <- "bot"
+mod <- "neut"
 
 # subset sims_stats and sims_param for the given model
 stat_mod <- subset(sims_stats, subset = models == mod)
@@ -113,18 +116,19 @@ par_mod <- subset(sims_param, subset = models == mod)
 
 if (calc_cv_for_abc == TRUE) {
   # before inference, we see whether a parameter can be estimated at all
-  cv_nbot <- function(method, pars, nval = 5, tols = c(0.001, 0.005, 0.0005)){ #
+  cv_nbot <- function(method, pars, nval = 5, tols = c(0.0005, 0.001, 0.005)){ #
     cv_res_rej <- cv4abc(data.frame(par_mod)[pars], stat_mod, nval = nval,
                          tols = tols, method = method)
   }
   pars <- c("nbot", "nhist", "tbotend", "tbotstart", "mut_rate", "gsm_param")
   
   cv_res <- cv_nbot(method = method_cv, pars = pars, nval = nval_cv,  tols = tols_cv)
-  out <- paste0("abc_estimates/cv_params_", sims_name, ".RData")
+  out <- paste0("abc_estimates/cv_params0005_", sims_name, ".RData")
   # write.table(cv_res, file = out, row.names = FALSE)
   save(cv_res, file = out)
 }
 
+if (abc_analysis == TRUE) {
 # run the actual abc analysis --------------------------------------------------
 
 ## load model probabilities
@@ -152,7 +156,7 @@ names(all_args) <- c("methods", "species", "pars")
 
 ## run abc in parallel
 
-cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 35))
+cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 10))
 clusterEvalQ(cl,library("abc"))
 # clusterExport(cl, varlist = c("all_sumstats", "par_mod", "stat_mod", "tol_abc"), envir = environment())
 
@@ -169,4 +173,4 @@ stopCluster(cl)
 
 abc_full <- list(all_args, abc_est)
 save(abc_full, file = paste0("abc_estimates/abc_", sims_name, ".RData"))
-
+}

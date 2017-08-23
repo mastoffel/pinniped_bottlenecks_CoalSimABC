@@ -83,7 +83,7 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 ####### run abc step 1 ########
 
-sim_name <- "sims_1500k"
+sim_name <- "sims_10000k"
 
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name, ".txt")
@@ -106,9 +106,9 @@ params <- c(param_start:param_end)
 # create a character vector with models
 models <- sims$model
 # tolerance rate
-tol <- 0.001
+tol <- 0.0005
 # cross-validation replicates / number of replicates used to estimate the null distribution of the goodness-of-fit statistic
-cv_rep <- 2
+cv_rep <- 100
 # method for model selection with approximate bayesian computation, see ?postpr
 method <- 'mnlogistic'
 # extract names of all models
@@ -160,7 +160,7 @@ write.table(all_probs_df, file = paste0("results/model_probs/",sim_name, "_model
   
 if (!dir.exists("plots/goodnessoffit")) dir.create("plots/goodnessoffit")
 # calculate all fits
-cl <- makeCluster(getOption("cl.cores", detectCores()-15))
+cl <- makeCluster(getOption("cl.cores", detectCores()-10))
 clusterEvalQ(cl, c(library("sealABC"), library("abc")))
 all_fits_bot <- parApply(cl, all_sumstats, 1, abc::gfit, sumstat = sims_stats, nb.replicate = cv_rep, tol = tol, subset = models == "bot")
 all_fits_neut <- parApply(cl, all_sumstats,  1, abc::gfit, sumstat = sims_stats, nb.replicate = cv_rep, tol = tol, subset = models == "neut")

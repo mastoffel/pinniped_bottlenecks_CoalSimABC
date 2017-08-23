@@ -1,10 +1,12 @@
+# main coalescent simulation script.
+
 library(strataG)
 library(dplyr)
 library(truncnorm)
 library(parallel)
 
 # number of simulations
-num_sim <- 1500000
+num_sim <- 5000000
 
 # create data.frame with all parameter values ---------------
 # sample size
@@ -22,7 +24,7 @@ create_N <- function(){
     # pop_size <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0) # originally rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000)
     pop_size <- round(rlnorm(1, 10.5, 1))
     # pop_size <- round(runif(1, min = 1, max = 100000)) # new uniform priors
-    nbot <- round(runif(1, min = 1, max = 500), 0) ## originally 500
+    nbot <- round(runif(1, min = 1, max = 800), 0) ## originally 500
     # nhist <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0)
     # nhist <- round(runif(1, min = 1, max = 100000)) # new uniform priors
     nhist <- round(round(rlnorm(1, 10.5, 1)))
@@ -193,4 +195,5 @@ sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_1500k.txt", row.names = FALSE)
+write.table(sims, file = "sims_5000k_large_bot2.txt", row.names = FALSE)
+# write.table(all_params, file = "sims_5000k_params.txt", row.names = FALSE)
