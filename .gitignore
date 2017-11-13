@@ -14,6 +14,7 @@ plots_simsstats/
 posterior_plots/
 results/
 output/
-
+posterior_plots/
+old_scripts/
 
 
