@@ -20,7 +20,7 @@ library(magrittr)
 library(parallel)
 library(readr)
 library(dplyr)
-library(tibble)
+
 ######  load data ######
 
 # seal descriptive data #
@@ -57,7 +57,7 @@ if (!exists("../data/all_sumstats_40ind_29.txt")) {
   # as data.frame
   all_sumstats_full <- do.call(rbind, all_sumstats_full)
   # write rownames as column
-  all_sumstats_full <- tibble::add_rownames(all_sumstats_full, var = "species")
+  all_sumstats_full <- dplyr::add_rownames(all_sumstats_full, var = "species")
   # write to txt file
   write_delim(all_sumstats_full, "../data/all_sumstats_40ind_29.txt")
 } 
@@ -107,7 +107,7 @@ models <- sims$model
 # tolerance rate
 tol <- 0.0005
 # cross-validation replicates / number of replicates used to estimate the null distribution of the goodness-of-fit statistic
-cv_rep <- 2
+cv_rep <- 100
 # method for model selection with approximate bayesian computation, see ?postpr
 method <- 'mnlogistic'
 # extract names of all models
@@ -117,6 +117,10 @@ sims_stats <- sims[sumstats]
 sims_param <- sims[params]
   
 
+just_goodness_of_fit <- TRUE
+
+if (!just_goodness_of_fit) {
+  
 ##### (1) first visual checks  -------------------------------------------------
 dir_check1 <- "model_evaluation/check1_sumstats/"
 if (!dir.exists(dir_check1)) dir.create(dir_check1)
@@ -135,8 +139,8 @@ dev.off() #only 129kb in size
 dir_check2 <- "model_evaluation/check2_models/"
 if (!dir.exists(dir_check2)) dir.create(dir_check2)
 
-# model cv
-cv.modsel <- cv4postpr(models, sims_stats, nval = cv_rep, tol = tol, method = method)
+# model cv, rejection method as it throws an error otherwise
+cv.modsel <- cv4postpr(models, sims_stats, nval = cv_rep, tol = tol, method = "rejection")
 # summary
 post_probs_summary <- summary(cv.modsel)
 # model_missclassification probabilites
@@ -169,7 +173,8 @@ all_probs_df <- do.call(rbind, lapply(all_probs, function(x) {
     out
 }))
 write.table(all_probs_df, file = paste0(dir_modselection,sim_name, "_model_selection.txt"))
-  
+
+}
   
 ### (4) Does the preferred model provide a good fit to the data?----------------
 

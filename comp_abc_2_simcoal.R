@@ -26,20 +26,20 @@ library(readxl)
 library(dplyr)
 library(magrittr)
 library(parallel)
-
+library(readr)
 
 # parameter definition ---------------------------------------------------------
 # path to simulation
 sims_name <- "sims_10000k"
 
 # do a cross validation for the abc parameters? ?cv4abc
-calc_cv_for_abc <- FALSE
+calc_cv_for_abc <- TRUE
 # if yes, which method?
 method_cv <- "rejection"    # "loclinear"
 # how many pseudo-observed datasets should be evaluated?
-nval_cv <- 1000
+nval_cv <- 4
 # which tolerance level(s)?
-tols_cv <- c(0.0001, 0.0005)
+tols_cv <- c(0.0005)
 # parallel
 run_parallel <- TRUE
 
@@ -55,26 +55,8 @@ all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 # load all_seals data for the 28 full datasets
 all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop_29.xlsx")[1:29]
 
-# calculate summary statistics
-cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 10))
-clusterEvalQ(cl, c(library("sealABC")))
-all_sumstats_full <- 
-  parallel::parLapply(cl, all_seals_full, mssumstats, by_pop = NULL, start_geno = 4, mratio = "loose",
-                                              rarefaction = TRUE, nresamp = 1000, nind = 40, nloc = NULL)
-stopCluster(cl)
-
-sum_per_clust <- function(mssumstats_output) {
-  if (nrow(mssumstats_output) > 1) {
-    out <- as.data.frame(t(apply(mssumstats_output, 2, mean)))
-  } else
-    out <- mssumstats_output
-  out
-}
-all_sumstats_full <- lapply(all_sumstats_full, sum_per_clust)
-
-# transform summary statistics to data frame
-all_sumstats_full <- do.call(rbind, all_sumstats_full)
-
+# get summary stats data
+all_sumstats_full <- read_delim("../data/all_sumstats_40ind_29.txt", delim = " ")
 
 # select summary statistics for posteriors. ------------------------------------
 
@@ -106,7 +88,7 @@ sims_stats <- sims[sumstats]
 sims_param <- sims[params]
   
 
-# just use bottleneck model
+# both models
 
 for (i in c("bot", "neut")) {
   # mod <- "bot"
@@ -169,7 +151,7 @@ for (i in c("bot", "neut")) {
     all_cv$true <- true_vals
     all_cv$estim <- estim_vals
     
-    out <- paste0("abc_estimates/cv_param_it1000_parallel_", sims_name,"_",mod,"_29", ".RData")
+    out <- paste0("model_evaluation/check4_params/cv_param_it1000_parallel_", sims_name,"_",mod,"_29", ".RData")
     # write.table(cv_res, file = out, row.names = FALSE)
     save(all_cv, file = out)
   }
