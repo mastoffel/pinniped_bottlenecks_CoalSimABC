@@ -33,18 +33,18 @@ library(readr)
 sims_name <- "sims_10000k"
 
 # do a cross validation for the abc parameters? ?cv4abc
-calc_cv_for_abc <- TRUE
+calc_cv_for_abc <- FALSE
 # if yes, which method?
-method_cv <- "rejection"    # "loclinear"
+method_cv <- "rejection"      # "rejection"    # "loclinear"
 # how many pseudo-observed datasets should be evaluated?
-nval_cv <- 4
+nval_cv <- 1000
 # which tolerance level(s)?
 tols_cv <- c(0.0005)
 # parallel
 run_parallel <- TRUE
 
 # do abc?
-abc_analysis <- TRUE
+abc_analysis <- FALSE
 # tolerance level for abc
 tol_abc <- 0.0005
 ## abc method choice, all three possible
@@ -63,6 +63,7 @@ all_sumstats_full <- read_delim("../data/all_sumstats_40ind_29.txt", delim = " "
 sumstats <- c("num_alleles_mean", 
               "exp_het_mean", "mratio_mean", "prop_low_afs_mean",
               "mean_allele_range")
+
 # sumstats <- c("mean_allele_range", "num_alleles_mean", "mean_allele_size_sd")
 
 all_sumstats_full <- all_sumstats_full[sumstats]
@@ -126,6 +127,7 @@ for (i in c("bot", "neut")) {
                            tols = tols, method = method)
     }
     pars <- c("pop_size", "nbot", "nhist", "tbotend", "tbotstart", "mut_rate", "gsm_param")
+    # pars <- c("nbot", "nhist", "mut_rate", "gsm_param")
     # tols_cv <- c(0.0005, 0.0001)
     
     cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 10))
@@ -151,7 +153,7 @@ for (i in c("bot", "neut")) {
     all_cv$true <- true_vals
     all_cv$estim <- estim_vals
     
-    out <- paste0("model_evaluation/check4_params/cv_param_it1000_parallel_", sims_name,"_",mod,"_29", ".RData")
+    out <- paste0("model_evaluation/check4_params/cv_param_it1000_parallel_loclin_", sims_name,"_",mod,"_29", ".RData")
     # write.table(cv_res, file = out, row.names = FALSE)
     save(all_cv, file = out)
   }

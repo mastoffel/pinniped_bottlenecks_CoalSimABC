@@ -1,6 +1,6 @@
 # save all adjusted values to 
 
-load("abc_estimates/abc_sims_10000k_bot.RData")
+load("abc_estimates/abc_sims_10000k_neut.RData")
 abc_full[[1]]
 length(abc_full[[2]])
 
@@ -19,4 +19,4 @@ for (i in 1:length(abc_full[[2]])) {
 abc_complete$adj_vals <- all_vals_adj
 abc_complete$unadj_vals <- all_vals_unadj
 
-save(abc_complete, file = paste0("abc_estimates/abc_10000k_complete.RData"))
+save(abc_complete, file = paste0("abc_estimates/abc_10000k_neut_complete.RData"))
