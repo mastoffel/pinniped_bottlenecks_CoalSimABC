@@ -16,5 +16,7 @@ results/
 output/
 posterior_plots/
 old_scripts/
-
+*.png
+*.RData
+*.txt
 

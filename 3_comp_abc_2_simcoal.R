@@ -32,13 +32,13 @@ library(readr)
 sims_name <- "sims_10000k"
 
 # do a cross validation for the abc parameters? ?cv4abc
-calc_cv_for_abc <- FALSE
+calc_cv_for_abc <- TRUE
 # if yes, which method?
 method_cv <- "rejection"      # "rejection"    # "loclinear"
 # how many pseudo-observed datasets should be evaluated?
-nval_cv <- 1000
+nval_cv <- 5000
 # which tolerance level(s)?
-tols_cv <- c(0.0005)
+tols_cv <- c(0.005)
 # parallel
 run_parallel <- TRUE
 
@@ -129,7 +129,7 @@ for (i in c("bot", "neut")) {
     # pars <- c("nbot", "nhist", "mut_rate", "gsm_param")
     # tols_cv <- c(0.0005, 0.0001)
     
-    cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 10))
+    cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 30))
     clusterEvalQ(cl, c(library("abc")))
     all_cv_res <- parLapply(cl, 1:(nval_cv/5), cv_nbot, par_mod, stat_mod, method_cv, pars, tols_cv)
     stopCluster(cl)
@@ -152,7 +152,7 @@ for (i in c("bot", "neut")) {
     all_cv$true <- true_vals
     all_cv$estim <- estim_vals
     
-    out <- paste0("model_evaluation/check4_params/cv_param_it1000_parallel_loclin_", sims_name,"_",mod,"_29", ".RData")
+    out <- paste0("model_evaluation/check4_params/cv_param_it100_parallel_rej2_", sims_name,"_",mod,"_29", ".RData")
     # write.table(cv_res, file = out, row.names = FALSE)
     save(all_cv, file = out)
   }

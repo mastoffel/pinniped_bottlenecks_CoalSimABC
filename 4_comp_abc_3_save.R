@@ -1,4 +1,5 @@
-# save all adjusted values to 
+# save abc estimates to RData file
+# replace filename neut with bot when working on bottleneck model estimates.
 
 load("abc_estimates/abc_sims_10000k_neut.RData")
 abc_full[[1]]

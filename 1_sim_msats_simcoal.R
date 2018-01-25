@@ -1,5 +1,6 @@
-# Main script for coalescent simulations. Uses strataG functions as interface
-# to fastsimcoal26
+# Main script for coalescent simulations. Uses strataG functions as interface.
+# See strataG manual on how to install fastsimcoal26, which is needed for 
+# the following script.
 
 library(strataG)
 library(dplyr)
@@ -7,7 +8,7 @@ library(truncnorm)
 library(parallel)
 
 # number of simulations
-num_sim <- 5000000
+num_sim <- 10000000
 
 # create data.frame with all parameter values ---------------
 # sample size
@@ -196,5 +197,5 @@ sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
-write.table(sims, file = "sims_5000k_large_bot2.txt", row.names = FALSE)
+write.table(sims, file = "sims_10000k.txt", row.names = FALSE)
 # write.table(all_params, file = "sims_5000k_params.txt", row.names = FALSE)
