@@ -1,4 +1,4 @@
-# Main script for coalescent simulations. Uses strataG functions as interface.
+# Start of the analysis: coalescent simulations. Uses strataG functions as interface.
 # See strataG manual on how to install fastsimcoal26, which is needed for 
 # the following script.
 

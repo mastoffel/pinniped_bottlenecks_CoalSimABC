@@ -12,6 +12,7 @@
 
 # packages
 library(devtools)
+# requires sealABC
 # install_github("mastoffel/sealABC")
 library(sealABC)
 library(data.table)
