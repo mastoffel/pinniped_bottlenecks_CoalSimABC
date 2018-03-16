@@ -26,6 +26,8 @@ library(dplyr)
 library(magrittr)
 library(parallel)
 library(readr)
+# leave cores free
+cores_not_to_use <- 30
 
 # parameter definition ---------------------------------------------------------
 # path to simulation
@@ -52,18 +54,18 @@ all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 # prepare empirical data -------------------------------------------------------
 
 # load all_seals data for the 28 full datasets
-all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop_29.xlsx")[1:29]
+all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_29.xlsx")[1:29]
 
 # get summary stats data
-all_sumstats_full <- read_delim("../data/all_sumstats_40ind_29.txt", delim = " ")
+all_sumstats_full <- read_delim("data/all_sumstats_40ind_29.txt", delim = " ")
 
 # select summary statistics for posteriors. ------------------------------------
 
 sumstats <- c("num_alleles_mean", 
-              "exp_het_mean", "mratio_mean", "prop_low_afs_mean",
+              "exp_het_mean", 
+              "mratio_mean", 
+              "prop_low_afs_mean",
               "mean_allele_range")
-
-# sumstats <- c("mean_allele_range", "num_alleles_mean", "mean_allele_size_sd")
 
 all_sumstats_full <- all_sumstats_full[sumstats]
 
@@ -91,31 +93,12 @@ sims_param <- sims[params]
 # both models
 
 for (i in c("bot", "neut")) {
-  # mod <- "bot"
+
   mod <- i
   
   # subset sims_stats and sims_param for the given model
   stat_mod <- subset(sims_stats, subset = models == mod)
   par_mod <- subset(sims_param, subset = models == mod)
-  
-  # check whether a parameter can be estimated at all ----------------------------
-  # (optional here as very time intense)
-  
-  # if ((calc_cv_for_abc == TRUE) & (run_parallel == FALSE)) {
-  #   # before inference, we see whether a parameter can be estimated at all
-  #   cv_nbot <- function(method, pars, nval = 5, tols = c(0.0005, 0.001, 0.005)){ #
-  #     cv_res_rej <- cv4abc(data.frame(par_mod)[pars], stat_mod, nval = nval,
-  #                          tols = tols, method = method)
-  #   }
-  #   #pars <- c("gsm_param")
-  #   pars <- c("nbot", "nhist", "tbotend", "tbotstart", "mut_rate", "gsm_param")
-  #   
-  #   cv_res <- cv_nbot(method = method_cv, pars = pars, nval = nval_cv,  tols = tols_cv)
-  #   out <- paste0("abc_estimates/cv_param_it1000_parallel", sims_name, ".RData")
-  #   # write.table(cv_res, file = out, row.names = FALSE)
-  #   save(cv_res, file = out)
-  # }
-  
   
   # in parallel ------------------------------------------------------------------
   if ((calc_cv_for_abc == TRUE) & (run_parallel == TRUE)) {
@@ -126,10 +109,8 @@ for (i in c("bot", "neut")) {
                            tols = tols, method = method)
     }
     pars <- c("pop_size", "nbot", "nhist", "tbotend", "tbotstart", "mut_rate", "gsm_param")
-    # pars <- c("nbot", "nhist", "mut_rate", "gsm_param")
-    # tols_cv <- c(0.0005, 0.0001)
     
-    cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 30))
+    cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - cores_not_to_use))
     clusterEvalQ(cl, c(library("abc")))
     all_cv_res <- parLapply(cl, 1:(nval_cv/5), cv_nbot, par_mod, stat_mod, method_cv, pars, tols_cv)
     stopCluster(cl)
@@ -160,10 +141,8 @@ for (i in c("bot", "neut")) {
 }
 
 
-
-
 if (abc_analysis == TRUE) {
-  # run the actual abc analysis --------------------------------------------------
+# run the actual abc analysis --------------------------------------------------
   for (i in c("bot", "neut")) {
     mod <- i
     
@@ -191,8 +170,7 @@ if (abc_analysis == TRUE) {
     names(all_args) <- c("methods", "species", "pars")
     
     ## run abc in parallel
-    
-    cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - 10))
+    cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - cores_not_to_use))
     clusterEvalQ(cl,library("abc"))
     # clusterExport(cl, varlist = c("all_sumstats", "par_mod", "stat_mod", "tol_abc"), envir = environment())
     

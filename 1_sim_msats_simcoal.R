@@ -7,7 +7,7 @@ library(dplyr)
 library(truncnorm)
 library(parallel)
 
-# number of simulations
+# number of coalescent simulations
 num_sim <- 10000000
 
 # create data.frame with all parameter values ---------------
@@ -22,13 +22,9 @@ create_N <- function(){
   nbot <- 1
   nhist <- 1
   pop_size <- 1
-  while(!(nbot < pop_size) & !(nbot < nhist)){
-    # pop_size <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0) # originally rtruncnorm(1, a=1, b=300000, mean = 10000, sd = 50000)
+  while (!(nbot < pop_size) & !(nbot < nhist)) {
     pop_size <- round(rlnorm(1, 10.5, 1))
-    # pop_size <- round(runif(1, min = 1, max = 100000)) # new uniform priors
-    nbot <- round(runif(1, min = 1, max = 800), 0) ## originally 500
-    # nhist <- round(rtruncnorm(1, a=1, b=100000, mean = 1000, sd = 20000), 0)
-    # nhist <- round(runif(1, min = 1, max = 100000)) # new uniform priors
+    nbot <- round(runif(1, min = 1, max = 800), 0) 
     nhist <- round(round(rlnorm(1, 10.5, 1)))
   }
   c(pop_size, nbot, nhist)
@@ -49,7 +45,7 @@ create_t <- function(){
   tbotend <- 1
   tbotstart <- 1
   # duration of bottleneck is at least 5 generations!
-  while(!((tbotstart - tbotend) > 5)) {
+  while (!((tbotstart - tbotend) > 5)) {
     tbotend <- round(runif(1, min = 1, max = 30))
     tbotstart <- round(runif(1, min = 10, max = 70))
   }
@@ -59,18 +55,19 @@ all_t <- as.data.frame(t(replicate(num_sim, create_t())))
 names(all_t) <- c("tbotend", "tbotstart")
 
 # mutation model
-# mut_rate <- rgamma(num_sim, 1.5, rate = 1500)
+# mutation rate
 mut_rate <- runif(num_sim, 1e-05, 4e-04)
-# parameter of the geometric distribution: decides about the proportion of multistep mutations
+# parameter of the geometric distribution: decides about the proportion 
+# of multistep mutations
 gsm_param <- runif(num_sim, min = 0, max = 0.3)
 range_constraint <- rep(30, num_sim)
 
-all_params <- data.frame(sample_size, num_loci, all_N, all_t, mut_rate, gsm_param, range_constraint, param_num = 1:num_sim)
+all_params <- data.frame(sample_size, num_loci, all_N, all_t, mut_rate, gsm_param, 
+                         range_constraint, param_num = 1:num_sim)
 
 
 # function to apply over every row of the parameter dataframe, simulate microsats
-# based on the coalescent with simcoal2 and compute summary statistics with strataG
-
+# based on the coalescent with fastsimcoal2 and compute summary statistics with strataG
 
 run_sims <- function(param_set, model){
   
@@ -102,7 +99,7 @@ run_sims <- function(param_set, model){
                                     hist.ev = hist_ev, exec = "/home/martin/bin/fsc25221", label = lab) # , 
   
   
-  # calc summary statistics
+  # calculate summary statistics
   
   # num_alleles, allel_richness, prop_unique_alleles, expt_het, obs_het
   # mean and sd
@@ -166,21 +163,8 @@ run_sims <- function(param_set, model){
   )
 }
 
-# runs well
-# sims_bot <- apply(all_params, 1, run_sims, model = "bottleneck")
-# sims_df_bot <- as.data.frame(data.table::rbindlist(sims_bot))
-# 
-# sims_neut <- apply(all_params, 1, run_sims, model = "neutral")
-# sims_df_neut <- as.data.frame(data.table::rbindlist(sims_neut))
-# 
 
-# gives errors
-
-# sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
-# sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
-
-
-# gives errors
+# Run function on cluster with 40 cores
 cl <- makeCluster(getOption("cl.cores", 40))
 clusterEvalQ(cl, c(library("strataG")))
 
@@ -192,10 +176,10 @@ sims_df_neut <- as.data.frame(data.table::rbindlist(sims_neut))
 
 stopCluster(cl)
 
-
+# reshape data to get a clean data.frame
 sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
 sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
 
+# save simulations in a txt file
 write.table(sims, file = "sims_10000k.txt", row.names = FALSE)
-# write.table(all_params, file = "sims_5000k_params.txt", row.names = FALSE)

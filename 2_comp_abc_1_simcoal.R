@@ -6,13 +6,14 @@
 # (3) calculate the fit of the empirical data to the model
 # (4) output all plots / txt files under plots and results
 
+# Note: Script creates some folders and puts results in.
+
 # files needed:
-# (1) all genotypes from ../data/seal_data_largest_clust_and_pop_29.xlsx
-# (2) simulation results sims_10000k.txt
+# (1) all genotypes from data/seal_data_largest_clust_and_pop_29.xlsx
+# (2) simulation results are saved as text file sims_10000k.txt
 
 # packages
 library(devtools)
-# requires sealABC
 # install_github("mastoffel/sealABC")
 library(sealABC)
 library(data.table)
@@ -31,14 +32,16 @@ library(dplyr)
 # how many cores should be left free?
 cores_not_to_use <- 20
 
-###### load genetic data #######
+# load genetic data #
 
 # load all_seals data for the 29 full datasets
-all_seals_full <- sealABC::read_excel_sheets("../data/seal_data_largest_clust_and_pop_29.xlsx")[1:29] # 
+all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_29.xlsx")[1:29] # 
 
-##### calculate summary statistics #####
+# calculate summary statistics for all datasets 
+# genetic summary statistics are calculated as the average over 40 individuals to mimic the ABC simulations
+sumstats_file <- "data/all_sumstats_40ind_29.txt"
 
-if (!exists("../data/all_sumstats_40ind_29.txt")) {
+if (!exists(sumstats_file)) {
   cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - cores_not_to_use ))
   clusterEvalQ(cl, c(library("sealABC")))
   all_sumstats_full <- parallel::parLapply(cl, all_seals_full, 
@@ -60,11 +63,11 @@ if (!exists("../data/all_sumstats_40ind_29.txt")) {
   # write rownames as column
   all_sumstats_full <- dplyr::add_rownames(all_sumstats_full, var = "species")
   # write to txt file
-  write_delim(all_sumstats_full, "../data/all_sumstats_40ind_29.txt")
+  write_delim(all_sumstats_full, sumstats_file)
 } 
 
 # get summary stats data
-all_sumstats_full <- read_delim("../data/all_sumstats_40ind_29.txt", delim = " ")
+all_sumstats_full <- read_delim(sumstats_file, delim = " ")
 
 #########################################
 
@@ -77,7 +80,6 @@ sumstats <- c("num_alleles_mean",
               "exp_het_mean")
 
 all_sumstats_full <- all_sumstats_full[sumstats]
-
 
 ####### run abc step 1 ########
 

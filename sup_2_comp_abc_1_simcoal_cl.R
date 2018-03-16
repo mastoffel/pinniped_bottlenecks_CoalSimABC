@@ -1,3 +1,6 @@
+## This scripts only purpose is the repetition of ABC analyses based on individuals
+# from the largest genetic cluster.
+
 ### ABC analysis part 1: Model selection and evaluation for largest clusters.
 ## This script will take the simulations from 1_sim_msats_simcoal as input and
 # (1) plot the different summary statistics as boxplots for all models
