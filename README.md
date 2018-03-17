@@ -34,7 +34,7 @@ devtools::install_github("mastoffel/sealABC")
 
 ## Analysis workflow part 2
 
-The second part of the analysis can be found on:
-https://github.com/mastoffel/bottleneck
+The rest of the analyses can be found here:
+https://github.com/mastoffel/pinniped_bottlenecks
 
 
