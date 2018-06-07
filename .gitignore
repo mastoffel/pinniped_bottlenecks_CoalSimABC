@@ -20,4 +20,6 @@ old_scripts/
 *.RData
 *.txt
 *.Rproj
+*.par
+X*/
 

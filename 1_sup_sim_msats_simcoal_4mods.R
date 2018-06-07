@@ -2,6 +2,8 @@
 # See strataG manual on how to install fastsimcoal26, which is needed for 
 # the following script.
 
+## This script contains simulations for 4 models, including ice-age bottlenecks
+
 library(strataG)
 library(dplyr)
 # library(truncnorm)
@@ -9,7 +11,7 @@ library(parallel)
 
 # number of coalescent simulations
 # original 10000000
-num_sim <- 10000000
+num_sim <- 100000
 
 # create data.frame with all parameter values ---------------
 # sample size
@@ -23,20 +25,30 @@ create_N <- function(){
   nbot <- 1
   nhist <- 1
   pop_size <- 1
+  niceage <- 1
   while (!(nbot < pop_size) & !(nbot < nhist)) {
     pop_size <- round(rlnorm(1, 10.5, 1))
     nbot <- round(runif(1, min = 1, max = 500), 0) # original 800
     nhist <- round(round(rlnorm(1, 10.5, 1)))
   }
-  c(pop_size, nbot, nhist)
+  niceage <- round(rlnorm(1, 8.5, 1))
+  
+  while (!(niceage <  nhist)) {
+    niceage <- round(rlnorm(1, 8.5, 1))
+  }
+  
+  c(pop_size, nbot, nhist, niceage)
 }
-all_N <- as.data.frame(t(replicate(num_sim, create_N())))
-names(all_N) <- c("pop_size", "nbot", "nhist")
 
-# calculate popsizes relative to current effective popsize
-all_N <- mutate(all_N, nbot_prop = nbot / pop_size)
-all_N <- mutate(all_N, nhist_bot_prop = nhist / nbot)
-all_N <- mutate(all_N, nhist_neut_prop = nhist / pop_size)
+all_N <- as.data.frame(t(replicate(num_sim, create_N())))
+names(all_N) <- c("pop_size", "nbot", "nhist", "niceage")
+
+
+# calculate popsizes relative to the effective popsize before in time
+all_N <- mutate(all_N, nbot_prop = nbot / pop_size,
+                       nhist_bot_prop = nhist / nbot,
+                       nhist_neut_prop = nhist / pop_size,
+                       niceage_prop = niceage / nhist)
 
 # simulate vectors for end and start of bottleneck
 # min generation time is 6 years, max is 21.6 in the Pinnipeds
@@ -50,10 +62,11 @@ create_t <- function(){
     tbotend <- round(runif(1, min = 1, max = 30))
     tbotstart <- round(runif(1, min = 10, max = 70))
   }
-  c(tbotend, tbotstart)
+  ticeageend <- round(runif(1, min = 700, max = 1500))
+  c(tbotend, tbotstart,  ticeageend)
 }
 all_t <- as.data.frame(t(replicate(num_sim, create_t())))
-names(all_t) <- c("tbotend", "tbotstart")
+names(all_t) <- c("tbotend", "tbotstart", "ticeageend")
 
 # mutation model
 # mutation rate
@@ -87,6 +100,20 @@ run_sims <- function(param_set, model){
     hist_ev <- strataG::fscHistEv(
       num.gen = param_set[["tbotstart"]], source.deme = 0,
       sink.deme = 0, new.sink.size = param_set[["nhist_neut_prop"]]
+    )
+  }
+  
+  if (model == "bottleneck_iceage"){
+    hist_ev <- strataG::fscHistEv(
+      num.gen = c(param_set[["tbotend"]], param_set[["tbotstart"]], param_set[["ticeageend"]]), source.deme = c(0, 0, 0),
+      sink.deme = c(0, 0, 0), new.sink.size = c(param_set[["nbot_prop"]], param_set[["nhist_bot_prop"]], param_set[["niceage_prop"]])
+    )
+  }
+  
+  if (model == "neutral_iceage"){
+    hist_ev <- strataG::fscHistEv(
+      num.gen = c(param_set[["tbotstart"]], param_set[["ticeageend"]]), source.deme = c(0,0),
+      sink.deme = c(0,0), new.sink.size = c(param_set[["nhist_neut_prop"]], param_set[["niceage_prop"]])
     )
   }
   
@@ -169,10 +196,10 @@ run_sims <- function(param_set, model){
 cl <- makeCluster(getOption("cl.cores", 40))
 clusterEvalQ(cl, c(library("strataG")))
 
-sims_bot <- parApply(cl, all_params, 1, run_sims, model = "bottleneck")
+sims_bot <- parApply(cl, all_params, 1, run_sims, model = "bottleneck_iceage")
 sims_df_bot <- as.data.frame(data.table::rbindlist(sims_bot))
 
-sims_neut <- parApply(cl, all_params, 1, run_sims, model = "neutral")
+sims_neut <- parApply(cl, all_params, 1, run_sims, model = "neutral_iceage")
 sims_df_neut <- as.data.frame(data.table::rbindlist(sims_neut))
 
 stopCluster(cl)
@@ -180,9 +207,9 @@ stopCluster(cl)
 # reshape data to get a clean data.frame
 sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
+sims$model <- c(rep("bot_icage", num_sim), rep("neut_iceage", num_sim))
 
 # save simulations in a txt file
 # original
 # write.table(sims, file = "sims_10000k.txt", row.names = FALSE)
-write.table(sims, file = "sims_10000kbot500.txt", row.names = FALSE)
+write.table(sims, file = "sims_10000kbot500_iceage.txt", row.names = FALSE)

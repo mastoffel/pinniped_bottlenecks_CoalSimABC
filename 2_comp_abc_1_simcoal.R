@@ -30,18 +30,27 @@ library(dplyr)
 ######  preparation ######
 
 # how many cores should be left free?
-cores_not_to_use <- 20
+cores_not_to_use <- 25
 
+# which steps should be done?
+visual_checks_boxplots <- FALSE
+can_abc_distinguish_models <- TRUE
+model_selection <- TRUE
+goodness_of_fit <- FALSE
 # load genetic data #
 
+# this has to be the exact name of the simulation test file
+# and will be used later for filenames
+sim_name <- paste0("sims_1000kbot500") 
+
 # load all_seals data for the 29 full datasets
-all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_29.xlsx")[1:29] # 
+all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_30.xlsx")[1:30] # 
 
 # calculate summary statistics for all datasets 
 # genetic summary statistics are calculated as the average over 40 individuals to mimic the ABC simulations
-sumstats_file <- "data/all_sumstats_40ind_29.txt"
+sumstats_file <- "data/all_sumstats_40ind_30.txt"
 
-if (!exists(sumstats_file)) {
+if (!file.exists(sumstats_file)) {
   cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - cores_not_to_use ))
   clusterEvalQ(cl, c(library("sealABC")))
   all_sumstats_full <- parallel::parLapply(cl, all_seals_full, 
@@ -83,8 +92,6 @@ all_sumstats_full <- all_sumstats_full[sumstats]
 
 ####### run abc step 1 ########
 
-sim_name <- "sims_10000k"
-
 ### load simulations, stored in main folder atm ###
 path_to_sims <- paste0(sim_name, ".txt")
 sims <- fread(path_to_sims, stringsAsFactors = FALSE)
@@ -116,10 +123,9 @@ model_names <- names(table(models))
 sims_stats <- sims[sumstats] 
 sims_param <- sims[params]
   
-# just calculate the goodness of fit for each model?=
-just_goodness_of_fit <- FALSE
+# just calculate the goodness of fit for each model?
 
-if (!just_goodness_of_fit) {
+if (visual_checks_boxplots) {
   
 ##### (1) first visual checks  -------------------------------------------------
 dir_check1 <- "model_evaluation/check1_sumstats/"
@@ -132,10 +138,13 @@ par(mfcol = c(3, 7), mar = c(4,4,1,1))
     boxplot(sims[[i]] ~ models, main = i)
   }
 dev.off() #only 129kb in size
-  
+}
   
 ### (2) can abc at all distinguish between the 2 models ? ----------------------
 # leave-one-out cv and confusion matrix
+
+if (can_abc_distinguish_models) {
+
 dir_check2 <- "model_evaluation/check2_models/"
 if (!dir.exists(dir_check2)) dir.create(dir_check2)
 
@@ -154,9 +163,13 @@ write_delim(x =  as.data.frame(post_probs_summary$conf.matrix),
 png(paste0(dir_check2, sim_name, "_confusion_mat.png"), width = 4, height = 4, units = "in", res = 300)
 plot(cv.modsel, names.arg = model_names)
 dev.off() #only 129kb in size
-  
+
+}
   
 ### (3) model selection --------------------------------------------------------
+
+if (model_selection) {
+
 dir_modselection <- "results/model_probs/"
 
 if (!dir.exists(dir_modselection)) dir.create(dir_modselection)
@@ -172,18 +185,22 @@ all_probs_df <- do.call(rbind, lapply(all_probs, function(x) {
     out <- round(x$pred, 3)
     out
 }))
-write.table(all_probs_df, file = paste0(dir_modselection, sim_name, "_model_selection.txt"))
+row.names(all_probs_df) <- names(all_seals) # new
+write.table(all_probs_df, file = paste0(dir_modselection, sim_name, "_model_selection_30.txt"))
 
 }
-  
+
+
 ### (4) Does the preferred model provide a good fit to the data?----------------
 
+if (goodness_of_fit) {
+  
 dir_modeval <- "model_evaluation/check3_modeval/"
 
 if (!dir.exists(dir_modeval)) dir.create(dir_modeval)
 # calculate all fits
 cl <- makeCluster(getOption("cl.cores", detectCores() - cores_not_to_use))
-clusterEvalQ(cl, c(library("sealABC"), library("abc")))
+clusterEvalQ(cl, c(library("abc")))
 all_fits_bot <- parApply(cl, all_sumstats, 1, abc::gfit, sumstat = sims_stats, 
                          nb.replicate = cv_rep, tol = tol, subset = models == "bot")
 
@@ -212,7 +229,7 @@ sapply(1:length(all_names), function(x) {
   })
   dev.off()
   
-  
+
 # save the p_values and distances
 #if (!dir.exists("results/goodnessoffit_p")) dir.create("results/goodnessoffit_p")
   
@@ -220,9 +237,9 @@ all_p_bot <- unlist(lapply(all_fits_bot, function(x) summary(x)$pvalue))
 all_p_neut <-  unlist(lapply(all_fits_neut, function(x) summary(x)$pvalue))
   
 p_df <- data.frame(species = all_names, bot_p = all_p_bot, neut_p = all_p_neut)
-write.table(p_df, file = paste0(dir_modeval, sim_name, "_p_vals_fit.txt"), row.names = FALSE)
+write.table(p_df, file = paste0(dir_modeval, sim_name, "_p_vals_fit_30.txt"), row.names = FALSE)
   
-
+}
   
   
   

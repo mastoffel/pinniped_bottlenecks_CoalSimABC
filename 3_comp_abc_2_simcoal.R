@@ -27,14 +27,14 @@ library(magrittr)
 library(parallel)
 library(readr)
 # leave cores free
-cores_not_to_use <- 30
+cores_not_to_use <- 25
 
 # parameter definition ---------------------------------------------------------
 # path to simulation
-sims_name <- "sims_10000k"
+sims_name <- "sims_1000kbot500"
 
 # do a cross validation for the abc parameters? ?cv4abc
-calc_cv_for_abc <- TRUE
+calc_cv_for_abc <- FALSE
 # if yes, which method?
 method_cv <- "rejection"      # "rejection"    # "loclinear"
 # how many pseudo-observed datasets should be evaluated?
@@ -45,7 +45,7 @@ tols_cv <- c(0.005)
 run_parallel <- TRUE
 
 # do abc?
-abc_analysis <- FALSE
+abc_analysis <- TRUE
 # tolerance level for abc
 tol_abc <- 0.0005
 ## abc method choice, all three possible
@@ -54,11 +54,13 @@ all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 # prepare empirical data -------------------------------------------------------
 
 # load all_seals data for the 28 full datasets
-all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_29.xlsx")[1:29]
+all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_30.xlsx")[1:30]
 
 # get summary stats data
-all_sumstats_full <- read_delim("data/all_sumstats_40ind_29.txt", delim = " ")
-
+all_sumstats_full <- read_delim("data/all_sumstats_40ind_30.txt", delim = " ")
+species_names <- all_sumstats_full$species
+all_sumstats_full <- as.data.frame(all_sumstats_full)
+rownames(all_sumstats_full) <- species_names
 # select summary statistics for posteriors. ------------------------------------
 
 sumstats <- c("num_alleles_mean", 
@@ -68,7 +70,7 @@ sumstats <- c("num_alleles_mean",
               "mean_allele_range")
 
 all_sumstats_full <- all_sumstats_full[sumstats]
-
+#rownames(all_sumstats_full) <- 
 
 # load simulations -------------------------------------------------------------
 path_to_sims <- paste0(sims_name,".txt")
@@ -92,6 +94,7 @@ sims_param <- sims[params]
 
 # both models
 
+  
 for (i in c("bot", "neut")) {
 
   mod <- i
@@ -133,30 +136,29 @@ for (i in c("bot", "neut")) {
     all_cv$true <- true_vals
     all_cv$estim <- estim_vals
     
-    out <- paste0("model_evaluation/check4_params/cv_param_it100_parallel_rej2_", sims_name,"_",mod,"_29", ".RData")
+    out <- paste0("model_evaluation/check4_params/cv_param_it100_parallel_rej_", sims_name,"_",mod,"_30", ".RData")
     # write.table(cv_res, file = out, row.names = FALSE)
     save(all_cv, file = out)
   }
 
-}
 
 
 if (abc_analysis == TRUE) {
 # run the actual abc analysis --------------------------------------------------
-  for (i in c("bot", "neut")) {
-    mod <- i
+  #for (i in c("bot", "neut")) {
+   # mod <- i
     
     ## load model probabilities
     model_probs <- read.table(paste0("results/model_probs/", 
-                                     sims_name, "_model_selection.txt"))
+                                     sims_name, "_model_selection_30.txt"))
     model_bot <- model_probs$bot > 0.5
     model_neut <- model_probs$bot <= 0.5
     # extract species names for species that have been bottlenecked according
     # to the model selection
     if (mod == "bot") {
-      all_species <- row.names(all_sumstats_full)[model_bot]
+      all_species <- rownames(all_sumstats_full)[model_bot]
     } else if (mod == "neut") {
-      all_species <- row.names(all_sumstats_full)[model_neut]
+      all_species <- rownames(all_sumstats_full)[model_neut]
     }
     
     
@@ -186,7 +188,9 @@ if (abc_analysis == TRUE) {
     # The second element are the corresponding abc objects.
     
     abc_full <- list(all_args, abc_est)
-    save(abc_full, file = paste0("abc_estimates/abc_", sims_name,"_",mod,"_29", ".RData"))
-  }
+    save(abc_full, file = paste0("abc_estimates/abc_", sims_name,"_",mod,"_30", ".RData"))
+  #}
  
+}
+  
 }
