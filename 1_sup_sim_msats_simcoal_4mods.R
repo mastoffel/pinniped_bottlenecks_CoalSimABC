@@ -11,7 +11,7 @@ library(parallel)
 
 # number of coalescent simulations
 # original 10000000
-num_sim <- 100000
+num_sim <- 1000000
 
 # create data.frame with all parameter values ---------------
 # sample size
@@ -31,10 +31,10 @@ create_N <- function(){
     nbot <- round(runif(1, min = 1, max = 500), 0) # original 800
     nhist <- round(round(rlnorm(1, 10.5, 1)))
   }
-  niceage <- round(rlnorm(1, 8.5, 1))
+  niceage <- round(rlnorm(1, 9.5, 1))
   
   while (!(niceage <  nhist)) {
-    niceage <- round(rlnorm(1, 8.5, 1))
+    niceage <- round(rlnorm(1, 9.5, 1))
   }
   
   c(pop_size, nbot, nhist, niceage)
@@ -46,9 +46,9 @@ names(all_N) <- c("pop_size", "nbot", "nhist", "niceage")
 
 # calculate popsizes relative to the effective popsize before in time
 all_N <- mutate(all_N, nbot_prop = nbot / pop_size,
-                       nhist_bot_prop = nhist / nbot,
-                       nhist_neut_prop = nhist / pop_size,
-                       niceage_prop = niceage / nhist)
+                nhist_bot_prop = nhist / nbot,
+                nhist_neut_prop = nhist / pop_size,
+                niceage_prop = niceage / nhist)
 
 # simulate vectors for end and start of bottleneck
 # min generation time is 6 years, max is 21.6 in the Pinnipeds
@@ -76,9 +76,15 @@ mut_rate <- runif(num_sim, 1e-05, 4e-04)
 gsm_param <- runif(num_sim, min = 0, max = 0.3)
 range_constraint <- rep(30, num_sim)
 
-all_params <- data.frame(sample_size, num_loci, all_N, all_t, mut_rate, gsm_param, 
-                         range_constraint, param_num = 1:num_sim)
+all_params <- data.frame(sample_size, num_loci, all_N, all_t) %>% 
+                mutate(growth_rate = log(niceage / nhist) / (ticeageend - tbotstart),
+                       mut_rate = mut_rate,
+                       gsm_param = gsm_param,
+                       range_constraint = range_constraint,
+                       param_num = 1:num_sim)
 
+#  mut_rate, gsm_param, 
+#range_constraint, param_num = 1:num_sim
 
 # function to apply over every row of the parameter dataframe, simulate microsats
 # based on the coalescent with fastsimcoal2 and compute summary statistics with strataG
@@ -106,14 +112,16 @@ run_sims <- function(param_set, model){
   if (model == "bottleneck_iceage"){
     hist_ev <- strataG::fscHistEv(
       num.gen = c(param_set[["tbotend"]], param_set[["tbotstart"]], param_set[["ticeageend"]]), source.deme = c(0, 0, 0),
-      sink.deme = c(0, 0, 0), new.sink.size = c(param_set[["nbot_prop"]], param_set[["nhist_bot_prop"]], param_set[["niceage_prop"]])
+      sink.deme = c(0, 0, 0), new.sink.growth = c(0,  param_set[["growth_rate"]], 0), 
+      new.sink.size = c(param_set[["nbot_prop"]], param_set[["nhist_bot_prop"]], param_set[["niceage_prop"]])
     )
   }
   
   if (model == "neutral_iceage"){
     hist_ev <- strataG::fscHistEv(
       num.gen = c(param_set[["tbotstart"]], param_set[["ticeageend"]]), source.deme = c(0,0),
-      sink.deme = c(0,0), new.sink.size = c(param_set[["nhist_neut_prop"]], param_set[["niceage_prop"]])
+      sink.deme = c(0,0),  new.sink.growth = c(param_set[["growth_rate"]], 0), 
+      new.sink.size = c(param_set[["nhist_neut_prop"]], param_set[["niceage_prop"]])
     )
   }
   
@@ -124,7 +132,7 @@ run_sims <- function(param_set, model){
   )
   
   sim_msats <- strataG::fastsimcoal(pop.info = pop_info, locus.params = msat_params, 
-                                    hist.ev = hist_ev, exec = "/home/martin/bin/fsc25221", label = lab) # , 
+                                    hist.ev = hist_ev, exec = "/home/martin/bin/fsc26", label = lab) # , 
   
   
   # calculate summary statistics
@@ -191,9 +199,10 @@ run_sims <- function(param_set, model){
   )
 }
 
+# sims_bot <- apply(all_params, 1, run_sims, model = "bottleneck_iceage")
 
-# Run function on cluster with 40 cores
-cl <- makeCluster(getOption("cl.cores", 40))
+# # Run icage models
+cl <- makeCluster(getOption("cl.cores", 30))
 clusterEvalQ(cl, c(library("strataG")))
 
 sims_bot <- parApply(cl, all_params, 1, run_sims, model = "bottleneck_iceage")
@@ -207,9 +216,35 @@ stopCluster(cl)
 # reshape data to get a clean data.frame
 sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
 sims <- cbind(sims, all_params)
-sims$model <- c(rep("bot_icage", num_sim), rep("neut_iceage", num_sim))
+sims$model <- c(rep("bot_iceage", num_sim), rep("neut_iceage", num_sim))
 
 # save simulations in a txt file
 # original
 # write.table(sims, file = "sims_10000k.txt", row.names = FALSE)
-write.table(sims, file = "sims_10000kbot500_iceage.txt", row.names = FALSE)
+write.table(sims, file = "sims_1000kbot500_iceage_expand.txt", row.names = FALSE)
+
+
+# next two models
+# cl <- makeCluster(getOption("cl.cores", 35))
+# clusterEvalQ(cl, c(library("strataG")))
+# 
+# sims_bot <- parApply(cl, all_params, 1, run_sims, model = "bottleneck")
+# sims_df_bot <- as.data.frame(data.table::rbindlist(sims_bot))
+# 
+# sims_neut <- parApply(cl, all_params, 1, run_sims, model = "neutral") 
+# sims_df_neut <- as.data.frame(data.table::rbindlist(sims_neut))
+# 
+# stopCluster(cl)
+# 
+# # reshape data to get a clean data.frame
+# sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
+# sims <- cbind(sims, all_params)
+# sims$model <- c(rep("bottleneck", num_sim), rep("neutral", num_sim))
+
+# save simulations in a txt file
+# original
+# write.table(sims, file = "sims_10000k.txt", row.names = FALSE)
+# write.table(sims, file = "sims_1000kbot500_4mod_exp.txt", row.names = FALSE)
+
+
+

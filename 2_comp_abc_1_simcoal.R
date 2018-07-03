@@ -30,18 +30,18 @@ library(dplyr)
 ######  preparation ######
 
 # how many cores should be left free?
-cores_not_to_use <- 25
+cores_not_to_use <- 40
 
 # which steps should be done?
 visual_checks_boxplots <- FALSE
-can_abc_distinguish_models <- TRUE
-model_selection <- TRUE
+can_abc_distinguish_models <- FALSE
+model_selection <- FALSE
 goodness_of_fit <- FALSE
 # load genetic data #
 
 # this has to be the exact name of the simulation test file
 # and will be used later for filenames
-sim_name <- paste0("sims_1000kbot500") 
+sim_name <- paste0("sims_10000kbot500") 
 
 # load all_seals data for the 29 full datasets
 all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_30.xlsx")[1:30] # 
@@ -180,8 +180,11 @@ clusterEvalQ(cl, c(library("sealABC"), library("abc")))
 all_probs <- parallel::parApply(cl, all_sumstats, 1, abc::postpr, index = models, 
                                 sumstat = sims_stats, tol = tol, method = method)
 stopCluster(cl)
-  
+
+save(all_probs, file = "all_probs_10000k_500bot.RData")
+
 all_probs_df <- do.call(rbind, lapply(all_probs, function(x) {
+    if(!is.numeric(x$pred)) return(NA)
     out <- round(x$pred, 3)
     out
 }))

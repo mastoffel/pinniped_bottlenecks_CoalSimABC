@@ -27,27 +27,27 @@ library(magrittr)
 library(parallel)
 library(readr)
 # leave cores free
-cores_not_to_use <- 30
+cores_not_to_use <- 20
 
 # parameter definition ---------------------------------------------------------
 # path to simulation
-sims_name <- "sims_10000kbot500"
+sims_name <- "sims_1000k_4mods_expand"
 
 # do a cross validation for the abc parameters? ?cv4abc
-calc_cv_for_abc <- TRUE
+calc_cv_for_abc <- FALSE
 # if yes, which method?
 method_cv <- "rejection"      # "rejection"    # "loclinear"
 # how many pseudo-observed datasets should be evaluated?
 nval_cv <- 1000
 # which tolerance level(s)?
-tols_cv <- c(0.0005)
+tols_cv <- c(0.005)
 # parallel
 run_parallel <- TRUE
 
 # do abc?
-abc_analysis <- FALSE
+abc_analysis <- TRUE
 # tolerance level for abc
-tol_abc <- 0.0005
+tol_abc <- 0.005
 ## abc method choice, all three possible
 all_methods <- c("loclinear") # "ridge", "loclinear", "neuralnet"
 
@@ -90,13 +90,13 @@ model_names <- names(table(models))
 # divide stats and parameters
 sims_stats <- sims[sumstats] 
 sims_param <- sims[params]
-  
+
 
 # both models
 
-  
-for (i in c( "bot", "neut")) { #
 
+for (i in c( "bottleneck", "neutral", "bot_iceage", "neut_iceage")) { #
+  
   mod <- i
   
   # subset sims_stats and sims_param for the given model
@@ -111,7 +111,8 @@ for (i in c( "bot", "neut")) { #
       cv_res_rej <- cv4abc(data.frame(par_mod)[pars], stat_mod, nval = 5,
                            tols = tols, method = method)
     }
-    pars <- c("pop_size", "nbot", "nhist", "tbotend", "tbotstart", "mut_rate", "gsm_param")
+    pars <- c("pop_size", "nbot", "nhist", "tbotend", "tbotstart", "mut_rate", "gsm_param", 
+              "niceage","ticeageend")
     
     cl <- parallel::makeCluster(getOption("cl.cores", detectCores() - cores_not_to_use))
     clusterEvalQ(cl, c(library("abc")))
@@ -140,31 +141,38 @@ for (i in c( "bot", "neut")) { #
     # write.table(cv_res, file = out, row.names = FALSE)
     save(all_cv, file = out)
   }
-
-
-
-if (abc_analysis == TRUE) {
-# run the actual abc analysis --------------------------------------------------
-  #for (i in c("bot", "neut")) {
-   # mod <- i
+  
+  
+  
+  if (abc_analysis == TRUE) {
+    # run the actual abc analysis --------------------------------------------------
+    #for (i in c("bot", "neut")) {
+    # mod <- i
     
     ## load model probabilities
     model_probs <- read.table(paste0("results/model_probs/", 
                                      sims_name, "_model_selection_30.txt"))
-    model_bot <- model_probs$bot > 0.5
-    model_neut <- model_probs$bot <= 0.5
+    # as logical
+    model_probs_logi <- data.frame(t(apply(model_probs, 1, function(x)  x == max(x))))
+    
     # extract species names for species that have been bottlenecked according
     # to the model selection
-    if (mod == "bot") {
-      all_species <- rownames(all_sumstats_full)[model_bot]
-    } else if (mod == "neut") {
-      all_species <- rownames(all_sumstats_full)[model_neut]
+    # "bottleneck", "neutral", "bot_iceage", "neut_iceage"
+    if (mod == "bottleneck") {
+      all_species <- rownames(all_sumstats_full)[model_probs_logi$bottleneck]
+    } else if (mod == "neutral") {
+      all_species <- rownames(all_sumstats_full)[model_probs_logi$neutral]
+    } else if (mod == "bot_iceage") {
+      all_species <- rownames(all_sumstats_full)[model_probs_logi$bot_iceage]
+    } else if (mod == "neut_iceage") {
+      all_species <- rownames(all_sumstats_full)[model_probs_logi$neut_iceage]
     }
     
     
     # parameters to estimate posteriors
     all_parameters <- c("nbot", "pop_size", "mut_rate", "tbotstart", 
-                        "tbotend", "nhist", "gsm_param") #
+                        "tbotend", "nhist", "gsm_param", "niceage",
+                        "ticeageend") #
     
     # get all combinations of method, species and parameters
     all_args <- expand.grid(all_methods, all_species, all_parameters)
@@ -189,8 +197,8 @@ if (abc_analysis == TRUE) {
     
     abc_full <- list(all_args, abc_est)
     save(abc_full, file = paste0("abc_estimates/abc_", sims_name,"_",mod,"_30", ".RData"))
-  #}
- 
-}
+    #}
+    
+  }
   
 }

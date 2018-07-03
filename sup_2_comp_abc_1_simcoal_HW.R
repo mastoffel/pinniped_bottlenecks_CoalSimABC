@@ -35,21 +35,9 @@ cores_not_to_use <- 20
 ###### load genetic data #######
 
 # load all_seals data for the 29 full datasets
-all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_30.xlsx") # 
+all_seals_full <- sealABC::read_excel_sheets("data/seal_data_largest_clust_and_pop_all_hw_30.xlsx")[1:30] # 
 
-
-# set to TRUE is largest clusters instead of full datasets
-calc_on_cluster <- TRUE
-if (calc_on_cluster) {
-  # for calculation on clustered data (just for retrieving the names)
-  bottleneck_cl <- read_delim("data/bottleneck_results_30_cl.txt", col_names = TRUE, delim = " ")
-  all_seals_full <- all_seals_full[bottleneck_cl$id]
-  shortcut_save <- "_cl"
-} else {
-  all_seals_full  <- all_seals_full[1:30]
-  shortcut_save <- ""
-}
-
+shortcut_save <- "_HW"
 ##### calculate summary statistics #####
 
 if (!exists(paste0("data/all_sumstats_40ind_30", shortcut_save, ".txt"))) {
@@ -62,11 +50,11 @@ if (!exists(paste0("data/all_sumstats_40ind_30", shortcut_save, ".txt"))) {
   
   # calculate the mean across clusters
   sum_per_clust <- function(mssumstats_output) {
-      if (nrow(mssumstats_output) > 1) {
-        out <- as.data.frame(t(apply(mssumstats_output, 2, mean)))
-      } else
+    if (nrow(mssumstats_output) > 1) {
+      out <- as.data.frame(t(apply(mssumstats_output, 2, mean)))
+    } else
       out <- mssumstats_output
-      out
+    out
   }
   all_sumstats_full <- lapply(all_sumstats_full, sum_per_clust)
   # as data.frame
@@ -101,15 +89,15 @@ sim_name <- "sims_10000kbot500"
 path_to_sims <- paste0(sim_name, ".txt")
 sims <- fread(path_to_sims, stringsAsFactors = FALSE)
 sims <- as.data.frame(sims)
-  
+
 ### subsetting and definition of model selection parameters
-  
+
 # subset summary statistics for species of a given population size, pop_size
 all_sumstats <- all_sumstats_full
-  
+
 # subset seal descriptive and summary data for species of a given population size, pop_size
 all_seals <- all_seals_full
-  
+
 # parameter columns in simulation data.frame
 param_start <- which(names(sims) == "sample_size")
 param_end <- which(names(sims) == "range_constraint")
@@ -127,7 +115,7 @@ model_names <- names(table(models))
 # divide stats and parameters
 sims_stats <- sims[sumstats] 
 sims_param <- sims[params]
-  
+
 model_selection <- TRUE
 
 if (model_selection) {
@@ -156,4 +144,3 @@ if (model_selection) {
 }
 
 
- 
