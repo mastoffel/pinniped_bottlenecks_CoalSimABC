@@ -4,12 +4,53 @@
 
 library(strataG)
 library(dplyr)
-# library(truncnorm)
 library(parallel)
+
+# posterior predictive checks
+library(tidyr)
+library(dplyr)
+library(readr)
+# load abc posterior data
+load("abc_estimates/abc_10000kbot500_bot_complete_30.RData")
+abc_bot <- unnest(abc_complete) %>% 
+  mutate(post_mod = "bot")
+load("abc_estimates/abc_10000kbot500_neut_complete_30.RData")
+abc_neut <- unnest(abc_complete) %>% 
+  mutate(post_mod = "neut")
+# load parameter distributions
+# abc_params <- fread("data/processed/abc_estimates/sims_1500k_params.txt")
+
+# model selection
+mod_select <- read_delim("results/model_probs/sims_10000kbot500_model_selection_30.txt",
+                         delim = " ", col_names = c("species", "bot", "neut"), skip = 1) %>%
+                        mutate(mod = ifelse(bot > 0.5, "bot", "neut")) %>%
+                        select(species, mod)
+# 
+# # put all abc results together
+abc_full <- rbind(abc_bot, abc_neut) 
+# %>% 
+#               left_join(mod_select, by = "species")
+
+# number of simulations for posterior predictive check
+num_sim <- 500
+# species <- "antarctic_fur_seal"
+
+abc_pars <- abc_full %>% 
+  group_by(species, pars) %>% 
+  sample_n(num_sim) %>% 
+  select(species, pars, unadj_vals, post_mod) %>% 
+  mutate(i = row_number()) %>% 
+  tidyr::spread(pars, unadj_vals) 
+
+
+
+#%>% 
+#  filter(species == !!species)
+
+
 
 # number of coalescent simulations
 # original 10000000
-num_sim <- 1000
 
 # create data.frame with all parameter values ---------------
 # sample size
@@ -17,21 +58,8 @@ sample_size <- rep(40, num_sim)
 # number of loci
 num_loci <- rep(10, num_sim)
 
-# simulate diploid effective pop size, bottleneck size and historical pop size
-# make sure that bottleneck pop size is smaller than historical pop size and current pop size
-create_N <- function(){
-  nbot <- 1
-  nhist <- 1
-  pop_size <- 1
-  while (!(nbot < pop_size) & !(nbot < nhist)) {
-    pop_size <- round(rlnorm(1, 10.5, 1))
-    nbot <- round(runif(1, min = 1, max = 500), 0) # original 800
-    nhist <- round(round(rlnorm(1, 10.5, 1)))
-  }
-  c(pop_size, nbot, nhist)
-}
-all_N <- as.data.frame(t(replicate(num_sim, create_N())))
-names(all_N) <- c("pop_size", "nbot", "nhist")
+# put posterior parameters into data.frame
+all_N <- data.frame("pop_size" = abc_pars$pop_size, "nbot" = abc_pars$nbot, "nhist" = abc_pars$nhist)
 
 # calculate popsizes relative to current effective popsize
 all_N <- mutate(all_N, nbot_prop = nbot / pop_size)
@@ -42,48 +70,42 @@ all_N <- mutate(all_N, nhist_neut_prop = nhist / pop_size)
 # min generation time is 6 years, max is 21.6 in the Pinnipeds
 # make sure that the end of the bottleneck is always later (or earlier in generations backwards)
 # than the start of the bottleneck
-create_t <- function(){
-  tbotend <- 1
-  tbotstart <- 1
-  # duration of bottleneck is at least 5 generations!
-  while (!((tbotstart - tbotend) > 5)) {
-    tbotend <- round(runif(1, min = 1, max = 30))
-    tbotstart <- round(runif(1, min = 10, max = 70))
-  }
-  c(tbotend, tbotstart)
-}
-all_t <- as.data.frame(t(replicate(num_sim, create_t())))
-names(all_t) <- c("tbotend", "tbotstart")
+
+all_t <- data.frame("tbotend" = abc_pars$tbotend, "tbotstart" = abc_pars$tbotstart)
 
 # mutation model
 # mutation rate
-mut_rate <- runif(num_sim, 1e-05, 4e-04)
+mut_rate <- abc_pars$mut_rate
 # parameter of the geometric distribution: decides about the proportion 
 # of multistep mutations
-gsm_param <- runif(num_sim, min = 0, max = 0.3)
+gsm_param <- abc_pars$gsm_param
 range_constraint <- rep(30, num_sim)
 
+post_mod <- abc_pars$post_mod
+
 all_params <- data.frame(sample_size, num_loci, all_N, all_t, mut_rate, gsm_param, 
-                         range_constraint, param_num = 1:num_sim)
+                         range_constraint, param_num = 1:num_sim, post_mod) %>% 
+                  mutate(post_mod = ifelse(post_mod == "bot", 1, 0))
+str(all_params)
 
 
-# function to apply over every row of the parameter dataframe, simulate microsats
-# based on the coalescent with fastsimcoal2 and compute summary statistics with strataG
-
-run_sims <- function(param_set, model){
+run_sims <- function(param_set){
   
+  model <- as.character(param_set[["post_mod"]])
   lab <- as.character(param_set[["param_num"]])
   pop_info <- strataG::fscPopInfo(pop.size = param_set[["pop_size"]], sample.size = param_set[["sample_size"]])
   mig_rates <- matrix(0)
   
-  if (model == "bottleneck"){
+  # 1 if for bottleneck
+  if (model == 1){
     hist_ev <- strataG::fscHistEv(
       num.gen = c(param_set[["tbotend"]], param_set[["tbotstart"]]), source.deme = c(0, 0),
       sink.deme = c(0, 0), new.sink.size = c(param_set[["nbot_prop"]], param_set[["nhist_bot_prop"]])
     )
   }
   
-  if (model == "neutral"){
+  # 2 is for neutral
+  if (model == 0){
     hist_ev <- strataG::fscHistEv(
       num.gen = param_set[["tbotstart"]], source.deme = 0,
       sink.deme = 0, new.sink.size = param_set[["nhist_neut_prop"]]
@@ -166,23 +188,24 @@ run_sims <- function(param_set, model){
 
 
 # Run function on cluster with 40 cores
-cl <- makeCluster(getOption("cl.cores", 40))
-clusterEvalQ(cl, c(library("strataG")))
+# cl <- makeCluster(getOption("cl.cores", 10))
+# clusterEvalQ(cl, c(library("strataG")))
+# 
+# sims_all <- parApply(cl, all_params, 1, run_sims)
+# sims_df <- as.data.frame(data.table::rbindlist(sims_all))
+# 
+# stopCluster(cl)
 
-sims_bot <- parApply(cl, all_params, 1, run_sims, model = "bottleneck")
-sims_df_bot <- as.data.frame(data.table::rbindlist(sims_bot))
-
-sims_neut <- parApply(cl, all_params, 1, run_sims, model = "neutral")
-sims_df_neut <- as.data.frame(data.table::rbindlist(sims_neut))
-
-stopCluster(cl)
+sims_all <- apply(all_params, 1, run_sims)
+sims_df <- as.data.frame(data.table::rbindlist(sims_all))
 
 # reshape data to get a clean data.frame
-sims <- do.call(rbind, list(sims_df_bot, sims_df_neut))
-sims <- cbind(sims, all_params)
-sims$model <- c(rep("bot", num_sim), rep("neut", num_sim))
+abc_post <- abc_pars %>% 
+  select(species, post_mod)
 
+sims <- cbind(as.data.frame(abc_post), sims_df, all_params)
 # save simulations in a txt file
 # original
 # write.table(sims, file = "sims_10000k.txt", row.names = FALSE)
-write.table(sims, file = "sims_10000kbot500.txt", row.names = FALSE)
+write.table(sims, file = "../abc_analysis/model_evaluation/check5_postpred/sims_10000kbot500_post_pred_checks1.txt", row.names = FALSE)
+

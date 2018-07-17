@@ -30,13 +30,13 @@ library(dplyr)
 ######  preparation ######
 
 # how many cores should be left free?
-cores_not_to_use <- 40
+cores_not_to_use <- 45
 
 # which steps should be done?
 visual_checks_boxplots <- FALSE
 can_abc_distinguish_models <- FALSE
 model_selection <- FALSE
-goodness_of_fit <- FALSE
+goodness_of_fit <- TRUE
 # load genetic data #
 
 # this has to be the exact name of the simulation test file
@@ -210,7 +210,10 @@ all_fits_bot <- parApply(cl, all_sumstats, 1, abc::gfit, sumstat = sims_stats,
 all_fits_neut <- parApply(cl, all_sumstats,  1, abc::gfit, sumstat = sims_stats, 
                           nb.replicate = cv_rep, tol = tol, subset = models == "neut")
 stopCluster(cl)
-  
+
+saveRDS(all_fits_bot, file = paste0(dir_modeval, sim_name, "good_of_fit_bot.rds"))
+saveRDS(all_fits_neut, file = paste0(dir_modeval, sim_name, "good_of_fit_bot.rds"))
+
 all_names <- names(all_seals)
   
 # goodness of fit plots
@@ -231,7 +234,8 @@ sapply(1:length(all_names), function(x) {
     plot(all_fits_neut[[x]], main = paste0(all_names[x], "_neut"))
   })
   dev.off()
-  
+
+
 
 # save the p_values and distances
 #if (!dir.exists("results/goodnessoffit_p")) dir.create("results/goodnessoffit_p")
